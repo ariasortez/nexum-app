@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:types": "pnpm dlx supabase gen types typescript --project-id xyjpcufkvbolzzcjowlh > src/types/database.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.13",
+    "@hono/zod-validator": "^0.5.0",
+    "@supabase/supabase-js": "^2.49.8",
+    "hono": "^4.12.12",
+    "zod": "^3.25.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "dotenv": "^16.5.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}
