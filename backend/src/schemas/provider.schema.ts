@@ -37,23 +37,34 @@ export const createProviderProfileSchema = z.object({
 
 export const updateProviderProfileSchema = createProviderProfileSchema.partial().omit({ slug: true })
 
-export const providerPortfolioSchema = z.object({
+export const workPostSchema = z.object({
   id: z.string().uuid(),
   provider_id: z.string().uuid(),
-  image_url: z.string().url(),
-  caption: z.string().nullable(),
-  subcategory_id: z.string().uuid().nullable(),
-  created_at: z.string().nullable(),
+  title: z.string(),
+  description: z.string(),
+  subcategory_id: z.string().uuid(),
+  images: z.array(z.string().url()),
+  created_at: z.string(),
+  updated_at: z.string(),
 })
 
-export const createPortfolioItemSchema = z.object({
-  image_url: z.string().url(),
-  caption: z.string().max(255).optional(),
+export const createWorkPostSchema = z.object({
+  title: z.string().min(3).max(100),
+  description: z.string().min(10).max(2000),
+  subcategory_id: z.string().uuid(),
+  images: z.array(z.string().url()).min(1).max(5),
+})
+
+export const updateWorkPostSchema = z.object({
+  title: z.string().min(3).max(100).optional(),
+  description: z.string().min(10).max(2000).optional(),
   subcategory_id: z.string().uuid().optional(),
+  images: z.array(z.string().url()).min(1).max(5).optional(),
 })
 
 export type ProviderProfile = z.infer<typeof providerProfileSchema>
 export type CreateProviderProfile = z.infer<typeof createProviderProfileSchema>
 export type UpdateProviderProfile = z.infer<typeof updateProviderProfileSchema>
-export type ProviderPortfolio = z.infer<typeof providerPortfolioSchema>
-export type CreatePortfolioItem = z.infer<typeof createPortfolioItemSchema>
+export type WorkPost = z.infer<typeof workPostSchema>
+export type CreateWorkPost = z.infer<typeof createWorkPostSchema>
+export type UpdateWorkPost = z.infer<typeof updateWorkPostSchema>

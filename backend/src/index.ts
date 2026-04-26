@@ -6,9 +6,10 @@ serve(
   {
     fetch: app.fetch,
     port: env.PORT,
+    hostname: '0.0.0.0',
   },
   (info) => {
-    console.log(`FIXO Backend running on http://localhost:${info.port}`)
+    console.log(`FIXO Backend running on http://0.0.0.0:${info.port}`)
   }
 )
 

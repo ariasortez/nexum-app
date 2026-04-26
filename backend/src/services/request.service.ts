@@ -1,6 +1,6 @@
-import { HTTPException } from 'hono/http-exception'
 import { supabaseAdmin } from '../lib/supabase.js'
 import type { CreateServiceRequest, UpdateServiceRequest } from '../schemas/index.js'
+import { requestErrors } from '../errors/request.errors.js'
 
 interface ListRequestsParams {
   page: number
@@ -66,7 +66,7 @@ export async function listRequests(params: ListRequestsParams) {
   const { data, error, count } = await query
 
   if (error) {
-    throw new HTTPException(500, { message: 'Failed to fetch requests' })
+    throw requestErrors.fetchRequestsFailed()
   }
 
   return {
@@ -141,7 +141,7 @@ export async function getRequestById(id: string) {
     .single()
 
   if (error || !data) {
-    throw new HTTPException(404, { message: 'Request not found' })
+    throw requestErrors.requestNotFound()
   }
 
   return data
@@ -172,7 +172,7 @@ export async function createRequest(clientId: string, input: CreateServiceReques
     .single()
 
   if (error) {
-    throw new HTTPException(500, { message: 'Failed to create request' })
+    throw requestErrors.createRequestFailed()
   }
 
   return data
@@ -187,29 +187,38 @@ export async function updateRequest(id: string, clientId: string, input: UpdateS
     .single()
 
   if (existing.error || !existing.data) {
-    throw new HTTPException(404, { message: 'Request not found' })
+    throw requestErrors.requestNotFound()
   }
 
   if (existing.data.client_id !== clientId) {
-    throw new HTTPException(403, { message: 'Not authorized to update this request' })
+    throw requestErrors.updateNotAuthorized()
   }
 
   if (existing.data.status !== 'open') {
-    throw new HTTPException(400, { message: 'Can only update open requests' })
+    throw requestErrors.updateOnlyOpen()
   }
+
+  const updateFields: {
+    title?: string
+    description?: string
+    urgency?: string
+    status?: string
+  } = {}
+
+  if (input.title !== undefined) updateFields.title = input.title
+  if (input.description !== undefined) updateFields.description = input.description
+  if (input.urgency !== undefined) updateFields.urgency = input.urgency
+  if (input.status !== undefined) updateFields.status = input.status
 
   const { data, error } = await supabaseAdmin
     .from('service_requests')
-    .update({
-      ...input,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateFields)
     .eq('id', id)
     .select('id')
     .single()
 
   if (error) {
-    throw new HTTPException(500, { message: 'Failed to update request' })
+    throw requestErrors.updateRequestFailed()
   }
 
   return data
@@ -224,11 +233,11 @@ export async function deleteRequest(id: string, clientId: string) {
     .single()
 
   if (existing.error || !existing.data) {
-    throw new HTTPException(404, { message: 'Request not found' })
+    throw requestErrors.requestNotFound()
   }
 
   if (existing.data.client_id !== clientId) {
-    throw new HTTPException(403, { message: 'Not authorized to delete this request' })
+    throw requestErrors.deleteNotAuthorized()
   }
 
   const { error } = await supabaseAdmin
@@ -237,7 +246,7 @@ export async function deleteRequest(id: string, clientId: string) {
     .eq('id', id)
 
   if (error) {
-    throw new HTTPException(500, { message: 'Failed to delete request' })
+    throw requestErrors.deleteRequestFailed()
   }
 
   return { success: true }

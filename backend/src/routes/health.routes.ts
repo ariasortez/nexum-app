@@ -1,21 +1,12 @@
 import { Hono } from 'hono'
-import { supabaseAdmin } from '../lib/supabase.js'
+import { ok } from '../lib/api-response.js'
+import * as healthService from '../services/health.service.js'
 
 const health = new Hono()
 
 health.get('/', async (c) => {
-  const { error } = await supabaseAdmin
-    .from('main_categories')
-    .select('id')
-    .limit(1)
-
-  return c.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: error ? 'error' : 'ok',
-    },
-  })
+  const data = await healthService.getHealthStatus()
+  return c.json(ok(data))
 })
 
 export default health

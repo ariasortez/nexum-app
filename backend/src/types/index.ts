@@ -1,9 +1,11 @@
 import type { Context } from 'hono'
 
+export type UserRole = 'client' | 'provider' | 'admin'
+
 export interface AuthUser {
   id: string
   email: string
-  role?: string
+  role?: UserRole
 }
 
 export interface AuthContext extends Context {

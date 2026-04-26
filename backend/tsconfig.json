@@ -2,6 +2,12 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@fixo/contracts": ["../packages/contracts/src/index.ts"],
+      "@fixo/contracts/api": ["../packages/contracts/src/api.ts"],
+      "@fixo/contracts/*": ["../packages/contracts/src/*.ts"]
+    },
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,

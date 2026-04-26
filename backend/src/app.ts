@@ -21,7 +21,7 @@ app.route('/api', api)
 app.get('/', (c) => c.redirect('/api/health'))
 
 app.notFound((c) => {
-  return c.json({ success: false, error: { message: 'Not found' } }, 404)
+  return c.json({ success: false, error: { message: 'Not found', code: 'NOT_FOUND' } }, 404)
 })
 
 export default app

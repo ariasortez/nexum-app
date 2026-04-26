@@ -52,7 +52,22 @@ export type Database = {
           reference_id?: string | null
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_transactions_type_fkey"
+            columns: ["type"]
+            isOneToOne: false
+            referencedRelation: "credit_transaction_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       departments: {
         Row: {
@@ -130,7 +145,15 @@ export type Database = {
           name?: string
           slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "municipalities_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -138,13 +161,13 @@ export type Database = {
           avatar_url: string | null
           created_at: string | null
           deleted_at: string | null
-          department_id: string | null
+          department_id: string
           full_name: string
           id: string
           lat: number | null
           lng: number | null
-          municipality_id: string | null
-          phone: string | null
+          municipality_id: string
+          phone: string
           role: string | null
           updated_at: string | null
         }
@@ -153,13 +176,13 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          department_id?: string | null
+          department_id: string
           full_name: string
           id: string
           lat?: number | null
           lng?: number | null
-          municipality_id?: string | null
-          phone?: string | null
+          municipality_id: string
+          phone: string
           role?: string | null
           updated_at?: string | null
         }
@@ -168,17 +191,39 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          department_id?: string | null
+          department_id?: string
           full_name?: string
           id?: string
           lat?: number | null
           lng?: number | null
-          municipality_id?: string | null
-          phone?: string | null
+          municipality_id?: string
+          phone?: string
           role?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_role_fkey"
+            columns: ["role"]
+            isOneToOne: false
+            referencedRelation: "user_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       provider_categories: {
         Row: {
@@ -193,7 +238,22 @@ export type Database = {
           provider_id?: string
           subcategory_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "provider_categories_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_categories_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       provider_portfolio: {
         Row: {
@@ -220,7 +280,22 @@ export type Database = {
           provider_id?: string
           subcategory_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "provider_portfolio_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_portfolio_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       provider_profiles: {
         Row: {
@@ -229,13 +304,13 @@ export type Database = {
           business_name: string
           created_at: string | null
           credits_balance: number | null
-          department_id: string | null
+          department_id: string
           description: string | null
           id: string
           is_active: boolean | null
           lat: number | null
           lng: number | null
-          municipality_id: string | null
+          municipality_id: string
           phone_public: string | null
           response_time_avg: number | null
           reviewed_by: string | null
@@ -255,13 +330,13 @@ export type Database = {
           business_name: string
           created_at?: string | null
           credits_balance?: number | null
-          department_id?: string | null
+          department_id: string
           description?: string | null
           id?: string
           is_active?: boolean | null
           lat?: number | null
           lng?: number | null
-          municipality_id?: string | null
+          municipality_id: string
           phone_public?: string | null
           response_time_avg?: number | null
           reviewed_by?: string | null
@@ -281,13 +356,13 @@ export type Database = {
           business_name?: string
           created_at?: string | null
           credits_balance?: number | null
-          department_id?: string | null
+          department_id?: string
           description?: string | null
           id?: string
           is_active?: boolean | null
           lat?: number | null
           lng?: number | null
-          municipality_id?: string | null
+          municipality_id?: string
           phone_public?: string | null
           response_time_avg?: number | null
           reviewed_by?: string | null
@@ -301,7 +376,77 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "provider_profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_profiles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_work_posts: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          images: string[]
+          provider_id: string
+          subcategory_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          images: string[]
+          provider_id: string
+          subcategory_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          images?: string[]
+          provider_id?: string
+          subcategory_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_work_posts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_work_posts_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       request_responses: {
         Row: {
@@ -334,7 +479,22 @@ export type Database = {
           provider_id?: string
           request_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "request_responses_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       request_statuses: {
         Row: {
@@ -379,7 +539,29 @@ export type Database = {
           rating?: number
           request_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reviews_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_requests: {
         Row: {
@@ -387,14 +569,14 @@ export type Database = {
           client_id: string
           created_at: string | null
           deleted_at: string | null
-          department_id: string | null
+          department_id: string
           description: string
           expires_at: string | null
           id: string
           lat: number | null
           lng: number | null
           max_responses: number | null
-          municipality_id: string | null
+          municipality_id: string
           photos: string[] | null
           status: string | null
           subcategory_id: string
@@ -406,14 +588,14 @@ export type Database = {
           client_id: string
           created_at?: string | null
           deleted_at?: string | null
-          department_id?: string | null
+          department_id: string
           description: string
           expires_at?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
           max_responses?: number | null
-          municipality_id?: string | null
+          municipality_id: string
           photos?: string[] | null
           status?: string | null
           subcategory_id: string
@@ -425,21 +607,64 @@ export type Database = {
           client_id?: string
           created_at?: string | null
           deleted_at?: string | null
-          department_id?: string | null
+          department_id?: string
           description?: string
           expires_at?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
           max_responses?: number | null
-          municipality_id?: string | null
+          municipality_id?: string
           photos?: string[] | null
           status?: string | null
           subcategory_id?: string
           title?: string
           urgency?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_status_fkey"
+            columns: ["status"]
+            isOneToOne: false
+            referencedRelation: "request_statuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_urgency_fkey"
+            columns: ["urgency"]
+            isOneToOne: false
+            referencedRelation: "urgency_levels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subcategories: {
         Row: {
@@ -469,7 +694,15 @@ export type Database = {
           name?: string
           slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subcategories_main_category_id_fkey"
+            columns: ["main_category_id"]
+            isOneToOne: false
+            referencedRelation: "main_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       urgency_levels: {
         Row: {
@@ -529,7 +762,15 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "verification_documents_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -539,7 +780,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      document_type: "id_front" | "id_back" | "selfie" | "business_license" | "other"
+      document_type:
+        | "id_front"
+        | "id_back"
+        | "selfie"
+        | "business_license"
+        | "other"
       verification_status: "pending" | "in_review" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -549,6 +795,7 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -646,3 +893,35 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      document_type: [
+        "id_front",
+        "id_back",
+        "selfie",
+        "business_license",
+        "other",
+      ],
+      verification_status: ["pending", "in_review", "approved", "rejected"],
+    },
+  },
+} as const

@@ -1,211 +1,51 @@
-import { HTTPException } from 'hono/http-exception'
 import { supabaseAdmin } from '../lib/supabase.js'
-import type { RegisterClient, RegisterProvider } from '../schemas/index.js'
+import type { UpdateProfile, ChangePassword } from '../schemas/index.js'
 import { env } from '../config/env.js'
-
-function generateSlug(businessName: string): string {
-  return businessName
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-export async function registerClient(input: RegisterClient) {
-  const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
-      emailRedirectTo: `${env.FRONTEND_URL}/auth/callback`,
-      data: {
-        full_name: input.full_name,
-        role: 'client',
-      },
-    },
-  })
-
-  if (authError) {
-    if (authError.message.includes('already registered')) {
-      throw new HTTPException(409, { message: 'Email already registered' })
-    }
-    throw new HTTPException(400, { message: authError.message })
-  }
-
-  if (!authData.user) {
-    throw new HTTPException(500, { message: 'Failed to create user' })
-  }
-
-  const { error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .insert({
-      id: authData.user.id,
-      full_name: input.full_name,
-      phone: input.phone,
-      role: 'client',
-    })
-
-  if (profileError) {
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-    throw new HTTPException(500, { message: 'Failed to create profile' })
-  }
-
-  return {
-    user_id: authData.user.id,
-    email: authData.user.email,
-    message: 'Registration successful. Please check your email to confirm your account.',
-  }
-}
-
-export async function registerProvider(input: RegisterProvider) {
-  const { data: existingSlug } = await supabaseAdmin
-    .from('provider_profiles')
-    .select('slug')
-    .eq('slug', generateSlug(input.business_name))
-    .single()
-
-  let slug = generateSlug(input.business_name)
-  if (existingSlug) {
-    slug = `${slug}-${Date.now().toString(36)}`
-  }
-
-  const subcategoryIds = input.subcategory_ids
-  const { data: subcategories, error: subError } = await supabaseAdmin
-    .from('subcategories')
-    .select('id, main_category_id')
-    .in('id', subcategoryIds)
-
-  if (subError || !subcategories || subcategories.length !== subcategoryIds.length) {
-    throw new HTTPException(400, { message: 'Invalid subcategory IDs' })
-  }
-
-  const mainCategoryIds = [...new Set(subcategories.map(s => s.main_category_id))]
-  if (mainCategoryIds.length > 5) {
-    throw new HTTPException(400, { message: 'Subcategories must belong to at most 5 main categories' })
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
-      emailRedirectTo: `${env.FRONTEND_URL}/auth/callback`,
-      data: {
-        full_name: input.full_name,
-        role: 'provider',
-      },
-    },
-  })
-
-  if (authError) {
-    if (authError.message.includes('already registered')) {
-      throw new HTTPException(409, { message: 'Email already registered' })
-    }
-    throw new HTTPException(400, { message: authError.message })
-  }
-
-  if (!authData.user) {
-    throw new HTTPException(500, { message: 'Failed to create user' })
-  }
-
-  const userId = authData.user.id
-
-  try {
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: userId,
-        full_name: input.full_name,
-        phone: input.phone,
-        role: 'provider',
-        department_id: input.department_id,
-        municipality_id: input.municipality_id,
-      })
-
-    if (profileError) {
-      throw new Error('Failed to create profile')
-    }
-
-    const { data: providerProfile, error: providerError } = await supabaseAdmin
-      .from('provider_profiles')
-      .insert({
-        user_id: userId,
-        slug,
-        business_name: input.business_name,
-        description: input.description,
-        phone_public: input.phone,
-        department_id: input.department_id,
-        municipality_id: input.municipality_id,
-        verification_status: 'pending',
-      })
-      .select('id')
-      .single()
-
-    if (providerError || !providerProfile) {
-      throw new Error('Failed to create provider profile')
-    }
-
-    const categoryInserts = subcategoryIds.map(subcategoryId => ({
-      provider_id: providerProfile.id,
-      subcategory_id: subcategoryId,
-    }))
-
-    const { error: categoriesError } = await supabaseAdmin
-      .from('provider_categories')
-      .insert(categoryInserts)
-
-    if (categoriesError) {
-      throw new Error('Failed to assign categories')
-    }
-
-    return {
-      user_id: userId,
-      provider_id: providerProfile.id,
-      email: authData.user.email,
-      message: 'Registration successful. Please check your email to confirm your account, then upload your verification documents.',
-    }
-  } catch (error) {
-    await supabaseAdmin.auth.admin.deleteUser(userId)
-    throw new HTTPException(500, { message: error instanceof Error ? error.message : 'Registration failed' })
-  }
-}
+import { authErrors } from '../errors/auth.errors.js'
+import { buildAuthSessionPayload } from './auth-session.service.js'
+import { refreshAuthSession, revokeSessionByAccessToken, signInWithPassword } from '../repositories/auth.repository.js'
+export { registerClient, registerProvider } from './auth-registration.service.js'
 
 export async function login(email: string, password: string) {
-  const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-    email,
-    password,
-  })
+  const { data, error } = await signInWithPassword(email, password)
 
   if (error) {
-    throw new HTTPException(401, { message: 'Invalid email or password' })
+    throw authErrors.invalidCredentials()
   }
 
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, full_name, role')
-    .eq('id', data.user.id)
-    .single()
-
-  let providerProfile = null
-  if (profile?.role === 'provider') {
-    const { data: provider } = await supabaseAdmin
-      .from('provider_profiles')
-      .select('id, slug, business_name, verification_status, credits_balance')
-      .eq('user_id', data.user.id)
-      .single()
-    providerProfile = provider
+  if (!data.session) {
+    throw authErrors.invalidAuthProviderResponse('Missing session in auth response')
   }
 
-  return {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_at: data.session.expires_at,
-    user: {
-      id: data.user.id,
-      email: data.user.email,
-      ...profile,
-      provider_profile: providerProfile,
-    },
+  return buildAuthSessionPayload(data.user.id, data.user.email, data.session)
+}
+
+export async function refreshSession(refreshToken: string) {
+  const { data, error } = await refreshAuthSession(refreshToken)
+
+  if (error) {
+    throw authErrors.invalidRefreshToken()
   }
+
+  if (!data.user || !data.session) {
+    throw authErrors.refreshSessionFailed({ message: 'Missing user or session in refresh response' })
+  }
+
+  return buildAuthSessionPayload(data.user.id, data.user.email, data.session)
+}
+
+export async function logout(accessToken?: string) {
+  if (!accessToken) {
+    return { message: 'Logged out' }
+  }
+
+  const { error } = await revokeSessionByAccessToken(accessToken)
+  if (error) {
+    // We still clear cookies on the route level to ensure local logout.
+    console.error(`[Auth logout] Failed to revoke session: ${error.message}`)
+  }
+
+  return { message: 'Logged out' }
 }
 
 export async function getMe(userId: string) {
@@ -216,7 +56,7 @@ export async function getMe(userId: string) {
     .single()
 
   if (error || !profile) {
-    throw new HTTPException(404, { message: 'Profile not found' })
+    throw authErrors.profileNotFound()
   }
 
   let providerProfile = null
@@ -259,8 +99,77 @@ export async function resendConfirmation(email: string) {
   })
 
   if (error) {
-    throw new HTTPException(400, { message: error.message })
+    throw authErrors.invalidAuthProviderResponse(error.message)
   }
 
   return { message: 'Confirmation email sent' }
+}
+
+export async function updateProfile(userId: string, input: UpdateProfile) {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      ...input,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw authErrors.updateProfileFailed()
+  }
+
+  return data
+}
+
+export async function changePassword(userId: string, input: ChangePassword) {
+  const { data: user } = await supabaseAdmin.auth.admin.getUserById(userId)
+
+  if (!user.user?.email) {
+    throw authErrors.userNotFound()
+  }
+
+  const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+    email: user.user.email,
+    password: input.current_password,
+  })
+
+  if (signInError) {
+    throw authErrors.currentPasswordIncorrect()
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: input.new_password,
+  })
+
+  if (error) {
+    throw authErrors.changePasswordFailed()
+  }
+
+  return { message: 'Password changed successfully' }
+}
+
+export async function forgotPassword(email: string) {
+  const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+    redirectTo: `${env.FRONTEND_URL}/auth/reset-password`,
+  })
+
+  if (error) {
+    throw authErrors.forgotPasswordFailed(error.message)
+  }
+
+  return { message: 'Password reset email sent' }
+}
+
+export async function resetPassword(userId: string, newPassword: string) {
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: newPassword,
+  })
+
+  if (error) {
+    throw authErrors.resetPasswordFailed()
+  }
+
+  return { message: 'Password reset successfully' }
 }
