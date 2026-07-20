@@ -98,4 +98,26 @@ requests.post('/:id/responses/:responseId/reject', requireAuth, requireRole('cli
   return c.json(ok(data))
 })
 
+requests.post('/:id/complete', requireAuth, requireRole('client'), async (c) => {
+  const user = c.get('user')
+  const requestId = c.req.param('id')
+  const data = await requestService.completeRequest(user.id, requestId)
+
+  return c.json(ok(data))
+})
+
+const createReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(1000).optional(),
+})
+
+requests.post('/:id/review', requireAuth, requireRole('client'), validateJson(createReviewSchema), async (c) => {
+  const user = c.get('user')
+  const requestId = c.req.param('id')
+  const input = c.req.valid('json')
+  const data = await requestService.createReview(user.id, requestId, input)
+
+  return c.json(ok(data), 201)
+})
+
 export default requests

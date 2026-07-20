@@ -3,6 +3,7 @@
 import { use, useState } from "react"
 import Link from "next/link"
 import { useAcceptQuotation, useRejectQuotation, useRequest } from "@/hooks/use-requests"
+import { completeRequest, createReview } from "@/services/requests"
 import { toast } from "@/lib/toast"
 import type { RequestResponseItem, ResponseStatus } from "@/types/requests"
 import { RESPONSE_STATUS_DISPLAY, URGENCY_DISPLAY, STATUS_DISPLAY } from "@/types/requests"
@@ -27,6 +28,11 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
   const { accept, isLoading: isAccepting } = useAcceptQuotation()
   const { reject, isLoading: isRejecting } = useRejectQuotation()
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState("")
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
 
   if (isLoading) {
     return <LoadingState />
@@ -73,6 +79,44 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     }
     setActiveResponseId(null)
   }
+
+  async function handleComplete() {
+    setIsCompleting(true)
+    try {
+      await completeRequest(requestId)
+      toast.success("¡Trabajo completado!", {
+        description: "Ahora puedes dejar una reseña al proveedor.",
+      })
+      await refetch()
+      setShowReviewModal(true)
+    } catch {
+      toast.error("No se pudo completar el trabajo")
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
+  async function handleSubmitReview() {
+    setIsSubmittingReview(true)
+    try {
+      await createReview(requestId, {
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      })
+      toast.success("¡Gracias por tu reseña!", {
+        description: "Tu opinión ayuda a otros clientes.",
+      })
+      setShowReviewModal(false)
+      await refetch()
+    } catch {
+      toast.error("No se pudo enviar la reseña")
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
+
+  const canComplete = request.status === "in_progress"
+  const canReview = request.status === "completed"
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-[var(--background)]">
@@ -289,10 +333,113 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
                   Cancelar solicitud
                 </button>
               )}
+
+              {canComplete && (
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={isCompleting}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white border-4 border-green-600 px-6 py-4 text-label-md font-label font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(22,163,74,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(22,163,74,1)] transition-all disabled:opacity-50"
+                >
+                  <Icon name="check_circle" size={20} />
+                  {isCompleting ? "Completando..." : "Marcar como completado"}
+                </button>
+              )}
+
+              {canReview && (
+                <button
+                  type="button"
+                  onClick={() => setShowReviewModal(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--secondary)] text-[var(--on-secondary)] border-4 border-[var(--secondary)] px-6 py-4 text-label-md font-label font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(255,184,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(255,184,0,1)] transition-all"
+                >
+                  <Icon name="star" size={20} />
+                  Dejar reseña
+                </button>
+              )}
             </div>
           </aside>
         </div>
       </main>
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[6px_6px_0px_0px_rgba(27,48,34,1)] w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b-4 border-[var(--primary)]">
+              <h2 className="text-xl font-bold font-headline text-[var(--primary)]">
+                Dejar reseña
+              </h2>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="p-2 hover:bg-[var(--surface-container)]"
+              >
+                <Icon name="close" size={24} className="text-[var(--on-surface-variant)]" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Rating */}
+              <div>
+                <label className="block text-label-sm font-label uppercase tracking-wider text-[var(--on-surface-variant)] mb-3">
+                  Calificación
+                </label>
+                <div className="flex gap-2 justify-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="p-1 transition-transform hover:scale-110"
+                    >
+                      <Icon
+                        name="star"
+                        filled={star <= reviewRating}
+                        size={40}
+                        className={star <= reviewRating ? "text-amber-500" : "text-gray-300"}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-label-sm font-label uppercase tracking-wider text-[var(--on-surface-variant)] mb-2">
+                  Comentario (opcional)
+                </label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Cuéntanos tu experiencia con este proveedor..."
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full px-4 py-3 bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] outline-none transition-all resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReviewModal(false)}
+                  className="flex-1 px-4 py-3 bg-[var(--surface)] text-[var(--on-surface)] border-2 border-[var(--primary)]/50 text-label-sm font-label font-bold uppercase hover:bg-[var(--surface-container)] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[var(--primary)] border-2 border-[var(--primary)] text-label-sm font-label font-bold uppercase shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(27,48,34,1)] transition-all disabled:opacity-50"
+                >
+                  <Icon name="send" size={18} className="!text-white" />
+                  <span className="!text-white">{isSubmittingReview ? "Enviando..." : "Enviar"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -601,22 +748,22 @@ function ResponseCard({
                     <span className="!text-white">{isDecisionLoading ? "..." : "Aceptar"}</span>
                   </button>
                 </div>
-                <button
-                  type="button"
+                <Link
+                  href="/client/messages"
                   className="w-full flex items-center justify-center gap-1 bg-[var(--primary-container)] text-[var(--primary)] border-2 border-[var(--primary)] px-3 py-2 text-[11px] font-label font-bold uppercase hover:bg-[var(--primary)] hover:text-white transition-all"
                 >
                   <Icon name="chat_bubble" size={14} />
                   Chat
-                </button>
+                </Link>
               </>
             ) : canChat ? (
-              <button
-                type="button"
+              <Link
+                href="/client/messages"
                 className="w-full flex items-center justify-center gap-1 bg-[var(--primary-container)] text-[var(--primary)] border-2 border-[var(--primary)] px-3 py-2 text-[11px] font-label font-bold uppercase shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(27,48,34,1)] transition-all"
               >
                 <Icon name="chat_bubble" size={14} />
                 Abrir chat
-              </button>
+              </Link>
             ) : null}
 
             {response.is_selected && responseStatus !== "accepted" && (

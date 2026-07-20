@@ -1219,3 +1219,169 @@ export async function rejectQuotation(clientId: string, requestId: string, respo
     rejected_response_id: responseId,
   }
 }
+
+// ==================== COMPLETE REQUEST ====================
+
+export async function completeRequest(clientId: string, requestId: string) {
+  const { data: request, error: requestError } = await supabaseAdmin
+    .from('service_requests')
+    .select(`
+      id, client_id, title, status,
+      responses:request_responses!inner (
+        id, provider_id, status,
+        provider:provider_profiles!request_responses_provider_id_fkey (
+          id, user_id
+        )
+      )
+    `)
+    .eq('id', requestId)
+    .eq('request_responses.status', 'accepted')
+    .is('deleted_at', null)
+    .single()
+
+  if (requestError || !request) {
+    throw requestErrors.requestNotFound()
+  }
+
+  if (request.client_id !== clientId) {
+    throw requestErrors.updateNotAuthorized()
+  }
+
+  if (request.status !== 'in_progress') {
+    throw responseErrors.requestNotInProgress()
+  }
+
+  const acceptedResponse = (request.responses as Array<{ id: string; provider_id: string; provider: { id: string; user_id: string } | null }>)?.[0]
+  if (!acceptedResponse) {
+    throw responseErrors.noAcceptedResponse()
+  }
+
+  const { error: updateResponseError } = await supabaseAdmin
+    .from('request_responses')
+    .update({ status: 'completed' })
+    .eq('id', acceptedResponse.id)
+
+  if (updateResponseError) {
+    throw responseErrors.updateResponseFailed()
+  }
+
+  const { error: updateRequestError } = await supabaseAdmin
+    .from('service_requests')
+    .update({ status: 'completed' })
+    .eq('id', requestId)
+
+  if (updateRequestError) {
+    throw requestErrors.updateRequestFailed()
+  }
+
+  if (acceptedResponse.provider?.user_id) {
+    notificationService.createRequestCompletedNotification({
+      recipientId: acceptedResponse.provider.user_id,
+      actorId: clientId,
+      requestId,
+      requestTitle: request.title,
+    }).catch((error: unknown) => {
+      console.error('[Notifications] Failed to create completed notification', error)
+    })
+  }
+
+  return { completed: true, response_id: acceptedResponse.id }
+}
+
+// ==================== CREATE REVIEW ====================
+
+interface CreateReviewInput {
+  rating: number
+  comment?: string
+}
+
+export async function createReview(clientId: string, requestId: string, input: CreateReviewInput) {
+  const { data: request, error: requestError } = await supabaseAdmin
+    .from('service_requests')
+    .select(`
+      id, client_id, status,
+      responses:request_responses!inner (
+        id, provider_id, status,
+        provider:provider_profiles!request_responses_provider_id_fkey (
+          id, user_id, avg_rating, total_reviews
+        )
+      )
+    `)
+    .eq('id', requestId)
+    .eq('request_responses.status', 'completed')
+    .is('deleted_at', null)
+    .single()
+
+  if (requestError || !request) {
+    throw requestErrors.requestNotFound()
+  }
+
+  if (request.client_id !== clientId) {
+    throw requestErrors.updateNotAuthorized()
+  }
+
+  if (request.status !== 'completed') {
+    throw responseErrors.requestNotCompleted()
+  }
+
+  const completedResponse = (request.responses as Array<{ id: string; provider_id: string; provider: { id: string; user_id: string; avg_rating: number | null; total_reviews: number | null } | null }>)?.[0]
+  if (!completedResponse) {
+    throw responseErrors.noCompletedResponse()
+  }
+
+  const { data: existingReview } = await supabaseAdmin
+    .from('reviews')
+    .select('id')
+    .eq('request_id', requestId)
+    .eq('client_id', clientId)
+    .maybeSingle()
+
+  if (existingReview) {
+    throw responseErrors.reviewAlreadyExists()
+  }
+
+  const { data: review, error: reviewError } = await supabaseAdmin
+    .from('reviews')
+    .insert({
+      provider_id: completedResponse.provider_id,
+      client_id: clientId,
+      request_id: requestId,
+      rating: input.rating,
+      comment: input.comment ?? null,
+    })
+    .select('id, rating')
+    .single()
+
+  if (reviewError) {
+    throw responseErrors.createReviewFailed()
+  }
+
+  const provider = completedResponse.provider
+  if (provider) {
+    const currentAvg = provider.avg_rating ?? 0
+    const currentTotal = provider.total_reviews ?? 0
+    const newTotal = currentTotal + 1
+    const newAvg = ((currentAvg * currentTotal) + input.rating) / newTotal
+
+    await supabaseAdmin
+      .from('provider_profiles')
+      .update({
+        avg_rating: Math.round(newAvg * 10) / 10,
+        total_reviews: newTotal,
+      })
+      .eq('id', provider.id)
+
+    if (provider.user_id) {
+      notificationService.createReviewReceivedNotification({
+        recipientId: provider.user_id,
+        actorId: clientId,
+        requestId,
+        rating: input.rating,
+      }).catch((error: unknown) => {
+        console.error('[Notifications] Failed to create review notification', error)
+      })
+    }
+  }
+
+  return review
+}

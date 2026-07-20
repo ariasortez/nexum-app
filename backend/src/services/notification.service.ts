@@ -2,7 +2,7 @@ import { env } from '../config/env.js'
 import { notificationErrors } from '../errors/notification.errors.js'
 import { supabaseAdmin } from '../lib/supabase.js'
 
-type NotificationType = 'proposal_received' | 'quotation_accepted' | 'quotation_rejected'
+type NotificationType = 'proposal_received' | 'quotation_accepted' | 'quotation_rejected' | 'request_completed' | 'review_received'
 
 type NotificationData = {
   request_id?: string
@@ -227,6 +227,58 @@ export async function createQuotationRejectedNotification(params: QuotationStatu
       request_title: params.requestTitle,
     },
     dedupeKey: `quotation_rejected:${params.responseId}`,
+  })
+}
+
+// ============================================================================
+// Request Completed Notification
+// ============================================================================
+
+type RequestCompletedParams = {
+  recipientId: string
+  actorId: string
+  requestId: string
+  requestTitle: string
+}
+
+export async function createRequestCompletedNotification(params: RequestCompletedParams) {
+  return createNotification({
+    recipientId: params.recipientId,
+    actorId: params.actorId,
+    type: 'request_completed',
+    title: '¡Trabajo completado!',
+    body: `El cliente marcó como completado el trabajo "${params.requestTitle}".`,
+    data: {
+      request_id: params.requestId,
+      request_title: params.requestTitle,
+    },
+    dedupeKey: `request_completed:${params.requestId}`,
+  })
+}
+
+// ============================================================================
+// Review Received Notification
+// ============================================================================
+
+type ReviewReceivedParams = {
+  recipientId: string
+  actorId: string
+  requestId: string
+  rating: number
+}
+
+export async function createReviewReceivedNotification(params: ReviewReceivedParams) {
+  const stars = '★'.repeat(params.rating) + '☆'.repeat(5 - params.rating)
+  return createNotification({
+    recipientId: params.recipientId,
+    actorId: params.actorId,
+    type: 'review_received',
+    title: '¡Nueva reseña recibida!',
+    body: `Un cliente te dejó una reseña: ${stars}`,
+    data: {
+      request_id: params.requestId,
+    },
+    dedupeKey: `review_received:${params.requestId}`,
   })
 }
 

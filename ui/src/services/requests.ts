@@ -121,6 +121,27 @@ export async function rejectQuotation(requestId: string, responseId: string): Pr
   return response.data
 }
 
+export async function completeRequest(requestId: string): Promise<{ completed: boolean; response_id: string }> {
+  const response = await api.post<ApiSuccessResponse<{ completed: boolean; response_id: string }>>(
+    `/requests/${requestId}/complete`,
+    {}
+  )
+  return response.data
+}
+
+export interface CreateReviewInput {
+  rating: number
+  comment?: string
+}
+
+export async function createReview(requestId: string, input: CreateReviewInput): Promise<{ id: string; rating: number }> {
+  const response = await api.post<ApiSuccessResponse<{ id: string; rating: number }>>(
+    `/requests/${requestId}/review`,
+    input
+  )
+  return response.data
+}
+
 // Provider-specific: list available requests matching provider's categories and location
 export async function listAvailableRequests(params: { page?: number; limit?: number } = {}): Promise<{
   data: ServiceRequestSummary[]

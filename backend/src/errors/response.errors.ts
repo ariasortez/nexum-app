@@ -20,4 +20,11 @@ export const responseErrors = {
   cannotCancelCompleted: () => new AppError(400, 'Cannot cancel a completed response', 'RESPONSE_CANNOT_CANCEL_COMPLETED'),
   alreadyCancelled: () => new AppError(400, 'Response is already cancelled', 'RESPONSE_ALREADY_CANCELLED'),
   cancelResponseFailed: () => new AppError(500, 'Failed to cancel response', 'RESPONSE_CANCEL_FAILED'),
+  requestNotInProgress: () => new AppError(400, 'Request must be in progress to complete', 'RESPONSE_REQUEST_NOT_IN_PROGRESS'),
+  noAcceptedResponse: () => new AppError(400, 'No accepted response found for this request', 'RESPONSE_NO_ACCEPTED'),
+  updateResponseFailed: () => new AppError(500, 'Failed to update response', 'RESPONSE_UPDATE_FAILED'),
+  requestNotCompleted: () => new AppError(400, 'Request must be completed to leave a review', 'RESPONSE_REQUEST_NOT_COMPLETED'),
+  noCompletedResponse: () => new AppError(400, 'No completed response found for this request', 'RESPONSE_NO_COMPLETED'),
+  reviewAlreadyExists: () => new AppError(409, 'You have already reviewed this request', 'RESPONSE_REVIEW_EXISTS'),
+  createReviewFailed: () => new AppError(500, 'Failed to create review', 'RESPONSE_REVIEW_FAILED'),
 }
