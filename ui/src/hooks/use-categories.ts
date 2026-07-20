@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { getCategories } from "@/services/categories"
-import type { MainCategory } from "@/types/categories"
+import type { MainCategory, Subcategory } from "@/types/categories"
+
+type SubcategoryWithMain = Subcategory & { main_category: { id: string; name: string } | null }
 
 export function useCategories() {
   const [categories, setCategories] = useState<MainCategory[]>([])
@@ -24,5 +26,14 @@ export function useCategories() {
     fetchCategories()
   }, [])
 
-  return { categories, isLoading, error }
+  const subcategories = useMemo<SubcategoryWithMain[]>(() => {
+    return categories.flatMap((cat) =>
+      cat.subcategories.map((sub) => ({
+        ...sub,
+        main_category: { id: cat.id, name: cat.name },
+      }))
+    )
+  }, [categories])
+
+  return { categories, subcategories, isLoading, error }
 }

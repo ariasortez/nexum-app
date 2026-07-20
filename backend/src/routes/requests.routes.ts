@@ -27,9 +27,30 @@ requests.get('/', validateQuery(listQuerySchema), async (c) => {
   return c.json(okPaginated(result.data, result.pagination))
 })
 
-requests.get('/:id', async (c) => {
+requests.get('/me', requireAuth, requireRole('client'), validateQuery(listQuerySchema), async (c) => {
+  const user = c.get('user')
+  const query = c.req.valid('query')
+  const result = await requestService.listClientRequests(user.id, query)
+
+  return c.json(okPaginated(result.data, result.pagination))
+})
+
+requests.get('/:id', requireAuth, async (c) => {
+  const user = c.get('user')
   const id = c.req.param('id')
-  const data = await requestService.getRequestById(id)
+  const data = await requestService.getRequestById(id, user)
+
+  return c.json(ok(data))
+})
+
+const uploadUrlSchema = z.object({
+  file_name: z.string().min(1),
+})
+
+requests.post('/upload-url', requireAuth, requireRole('client'), validateJson(uploadUrlSchema), async (c) => {
+  const user = c.get('user')
+  const { file_name } = c.req.valid('json')
+  const data = await requestService.generatePhotoUploadUrl(user.id, file_name)
 
   return c.json(ok(data))
 })
@@ -57,6 +78,24 @@ requests.delete('/:id', requireAuth, requireRole('client'), async (c) => {
   await requestService.deleteRequest(id, user.id)
 
   return c.json(okMessage('Request deleted'))
+})
+
+requests.post('/:id/responses/:responseId/accept', requireAuth, requireRole('client'), async (c) => {
+  const user = c.get('user')
+  const requestId = c.req.param('id')
+  const responseId = c.req.param('responseId')
+  const data = await requestService.acceptQuotation(user.id, requestId, responseId)
+
+  return c.json(ok(data))
+})
+
+requests.post('/:id/responses/:responseId/reject', requireAuth, requireRole('client'), async (c) => {
+  const user = c.get('user')
+  const requestId = c.req.param('id')
+  const responseId = c.req.param('responseId')
+  const data = await requestService.rejectQuotation(user.id, requestId, responseId)
+
+  return c.json(ok(data))
 })
 
 export default requests

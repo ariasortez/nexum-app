@@ -1,16 +1,24 @@
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Fraunces, Space_Grotesk, Outfit } from "next/font/google"
 import { ToastProvider } from "@/components/providers/toast-provider"
 import "./globals.css"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  weight: ["400", "700", "800", "900"],
 })
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+})
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 })
 
 export const viewport: Viewport = {
@@ -21,8 +29,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Nexum - Tu electricista de confianza, ahora.",
-  description: "Encuentra profesionales verificados en Honduras para resolver tus necesidades del hogar al instante.",
+  title: "Fixo - Encuentra profesionales de confianza",
+  description: "Conectamos clientes con profesionales verificados en Honduras para servicios del hogar. Rápido, seguro y garantizado.",
 }
 
 export default function RootLayout({
@@ -33,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${spaceGrotesk.variable} ${outfit.variable} h-full antialiased`}
     >
       <head>
         <link
@@ -41,7 +49,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full w-full max-w-full flex-col overflow-x-clip">
         {children}
         <ToastProvider />
       </body>

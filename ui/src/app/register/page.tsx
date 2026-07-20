@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useDepartments, useMunicipalities } from "@/hooks/use-locations"
 import { useCategories } from "@/hooks/use-categories"
 import { useRegister } from "@/hooks/use-register"
@@ -29,7 +28,6 @@ interface CustomSelectProps {
   placeholder: string
   disabled?: boolean
   isLoading?: boolean
-  accentColor?: "primary" | "secondary"
 }
 
 function CustomSelect({
@@ -39,7 +37,6 @@ function CustomSelect({
   placeholder,
   disabled = false,
   isLoading = false,
-  accentColor = "primary",
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -67,19 +64,6 @@ function CustomSelect({
     return () => document.removeEventListener("keydown", handleEscape)
   }, [])
 
-  const accentStyles = {
-    primary: {
-      open: "border-[var(--primary)] shadow-[4px_4px_0px_0px_var(--primary)] -translate-x-[2px] -translate-y-[2px]",
-      option: "hover:bg-[var(--primary-container)] hover:text-[var(--on-primary-container)]",
-      selected: "bg-[var(--primary)] text-[var(--on-primary)]",
-    },
-    secondary: {
-      open: "border-[var(--secondary)] shadow-[4px_4px_0px_0px_var(--secondary)] -translate-x-[2px] -translate-y-[2px]",
-      option: "hover:bg-[var(--secondary-container)] hover:text-[var(--on-secondary-container)]",
-      selected: "bg-[var(--secondary)] text-[var(--on-secondary)]",
-    },
-  }
-
   return (
     <div ref={containerRef} className="relative">
       {/* Trigger Button */}
@@ -87,30 +71,28 @@ function CustomSelect({
         type="button"
         onClick={() => !disabled && !isLoading && setIsOpen(!isOpen)}
         disabled={disabled || isLoading}
-        className={`w-full text-left px-4 py-3 bg-[var(--surface-container-lowest)] border-2 rounded transition-all flex items-center justify-between gap-2 ${
-          isOpen
-            ? accentStyles[accentColor].open
-            : "border-[var(--on-surface)]"
-        } ${disabled || isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+        className={`w-full text-left px-4 py-3 bg-[var(--surface)] border-4 border-[var(--primary)] transition-all flex items-center justify-between gap-2 ${
+          isOpen ? "neo-shadow-md -translate-x-[2px] -translate-y-[2px]" : ""
+        } ${disabled || isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:neo-shadow-sm"}`}
       >
-        <span className={`text-base truncate ${!selectedOption ? "text-[var(--outline)]" : "text-[var(--on-background)]"}`}>
+        <span className={`text-base truncate font-label ${!selectedOption ? "text-[var(--on-surface-variant)]/50" : "text-[var(--primary)]"}`}>
           {displayText}
         </span>
         <Icon
           name={isOpen ? "expand_less" : "expand_more"}
-          className={`text-xl transition-transform ${isOpen ? `text-[var(--${accentColor})]` : "text-[var(--outline)]"}`}
+          className={`text-xl transition-transform text-[var(--primary)]`}
         />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm shadow-[4px_4px_0px_0px_var(--on-surface)] max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-2 bg-[var(--surface)] border-4 border-[var(--primary)] neo-shadow-md max-h-60 overflow-y-auto">
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-[var(--outline)]">
+            <div className="px-4 py-3 text-sm text-[var(--on-surface-variant)] bg-[var(--surface)]">
               No hay opciones disponibles
             </div>
           ) : (
-            options.map((option, index) => (
+            options.map((option) => (
               <button
                 key={option.id}
                 type="button"
@@ -120,9 +102,9 @@ function CustomSelect({
                 }}
                 className={`w-full text-left px-4 py-3 text-base transition-colors ${
                   option.id === value
-                    ? accentStyles[accentColor].selected
-                    : `text-[var(--on-background)] ${accentStyles[accentColor].option}`
-                } ${index === 0 ? "rounded-tl-2xl" : ""} ${index === options.length - 1 ? "rounded-br-2xl" : ""}`}
+                    ? "bg-[var(--primary)] text-[var(--on-primary)]"
+                    : "bg-[var(--surface)] text-[var(--on-surface)] hover:bg-[var(--primary-container)] hover:text-[var(--primary)]"
+                }`}
               >
                 <span className="flex items-center gap-2">
                   {option.id === value && <Icon name="check" className="text-lg" />}
@@ -137,17 +119,6 @@ function CustomSelect({
   )
 }
 
-// Google Icon SVG
-function GoogleIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-    </svg>
-  )
-}
 
 // Password strength calculator
 function getPasswordStrength(password: string): { level: number; label: string } {
@@ -240,65 +211,65 @@ export default function RegisterPage() {
   return (
     <div className="bg-[var(--background)] min-h-screen text-[var(--on-background)] flex flex-col md:flex-row">
       {/* Left Panel (Branding) - Desktop Only */}
-      <aside className="hidden md:flex md:w-[60%] bg-[var(--primary)] flex-col justify-between p-12 relative overflow-hidden text-[var(--on-primary)]">
-        {/* Abstract Geometric Shapes */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[var(--primary-container)] rounded-full opacity-30 mix-blend-overlay" />
-        <div className="absolute bottom-[10%] right-[-5%] w-[30%] aspect-square bg-[var(--inverse-primary)] opacity-20 transform rotate-12 rounded-tl-[32px] rounded-br-[32px] rounded-tr-[4px] rounded-bl-[4px] border-4 border-[var(--on-primary)]" />
-        <div className="absolute top-[30%] right-[10%] w-[15%] h-[15%] border-8 border-[var(--on-primary)] rounded-full opacity-20" />
-        <div className="absolute bottom-[40%] left-[10%] w-[20%] aspect-square bg-[var(--surface-tint)] rounded-tr-[32px] rounded-bl-[32px] rounded-tl-[4px] rounded-br-[4px] opacity-40" />
+      <aside className="hidden md:flex md:w-[55%] bg-[var(--primary)] flex-col justify-between p-12 relative overflow-hidden text-[var(--on-primary)] border-r-4 border-[var(--primary-container)]">
+        {/* Floating Service Icons */}
+        <Icon name="electrical_services" className="absolute top-[2%] right-[5%] text-[200px] text-[var(--primary-container)] opacity-25" />
+        <Icon name="plumbing" className="absolute top-[10%] left-[2%] text-[180px] text-[var(--on-primary)] opacity-15" />
+        <Icon name="construction" className="absolute bottom-[10%] right-[0%] text-[220px] text-[var(--primary-container)] opacity-20" />
+        <Icon name="format_paint" className="absolute bottom-[0%] left-[10%] text-[160px] text-[var(--on-primary)] opacity-15" />
+        <Icon name="carpenter" className="absolute top-[30%] right-[20%] text-[150px] text-[var(--primary-container)] opacity-20" />
+        <Icon name="ac_unit" className="absolute top-[45%] left-[-5%] text-[190px] text-[var(--on-primary)] opacity-10" />
+        <Icon name="home_repair_service" className="absolute bottom-[30%] right-[-5%] text-[170px] text-[var(--primary-container)] opacity-15" />
+        <Icon name="roofing" className="absolute top-[-5%] left-[20%] text-[140px] text-[var(--on-primary)] opacity-15" />
+        <Icon name="handyman" className="absolute top-[55%] right-[10%] text-[160px] text-[var(--primary-container)] opacity-20" />
+        <Icon name="cleaning_services" className="absolute bottom-[45%] left-[15%] text-[130px] text-[var(--on-primary)] opacity-10" />
+        <Icon name="local_shipping" className="absolute top-[20%] right-[-5%] text-[150px] text-[var(--primary-container)] opacity-15" />
+        <Icon name="water_damage" className="absolute bottom-[-5%] right-[20%] text-[165px] text-[var(--on-primary)] opacity-10" />
+        <Icon name="garage" className="absolute top-[65%] left-[5%] text-[140px] text-[var(--primary-container)] opacity-15" />
+        <Icon name="yard" className="absolute top-[38%] left-[30%] text-[120px] text-[var(--on-primary)] opacity-10" />
 
         {/* Logo */}
         <Link href="/" className="relative z-10">
-          <Image
-            src="/nexum-logo-white.svg"
-            alt="Nexum Logo"
-            width={160}
-            height={64}
-            className="h-16 w-auto"
-            priority
-          />
+          <span className="text-5xl font-black text-[var(--primary-container)] font-headline tracking-tight">
+            FIXO
+          </span>
         </Link>
 
         {/* Content */}
-        <div className="relative z-10 mt-auto max-w-2xl">
-          <h1 className="text-[40px] font-bold text-[var(--on-primary)] leading-[1.1] tracking-[-0.04em] mb-6">
+        <div className="relative z-10 mt-auto max-w-xl">
+          <h1 className="text-4xl font-black text-[var(--on-primary)] font-headline leading-[1.1] mb-6">
             Únete a la red de servicios más grande de Honduras
           </h1>
-          <p className="text-base text-[var(--on-primary)]/80 max-w-lg">
+          <p className="text-lg text-[var(--primary-container)] font-body max-w-lg">
             Conecta con miles de clientes y profesionales locales en una plataforma diseñada para el mercado hondureño.
           </p>
         </div>
 
-        {/* Decorative dots */}
-        <div className="relative z-10 flex gap-4 mt-10 opacity-60">
-          <div className="w-16 h-1 bg-[var(--on-primary)] rounded-full" />
-          <div className="w-4 h-1 bg-[var(--on-primary)] rounded-full" />
-          <div className="w-4 h-1 bg-[var(--on-primary)] rounded-full" />
+        {/* Decorative elements */}
+        <div className="relative z-10 flex gap-4 mt-10">
+          <div className="w-16 h-1 bg-[var(--primary-container)]" />
+          <div className="w-4 h-1 bg-[var(--primary-container)]" />
+          <div className="w-4 h-1 bg-[var(--primary-container)]" />
         </div>
       </aside>
 
       {/* Right Panel (Form) */}
-      <main className="w-full md:w-[40%] flex-shrink-0 min-h-screen bg-[var(--surface)] flex flex-col justify-center px-5 py-10 overflow-y-auto relative z-20 md:shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+      <main className="w-full md:w-[45%] flex-shrink-0 min-h-screen bg-[var(--surface)] flex flex-col justify-center px-5 py-10 overflow-y-auto relative z-20">
         {/* Mobile Logo */}
         <Link href="/" className="md:hidden mb-8 flex justify-center">
-          <Image
-            src="/nexum-logo.svg"
-            alt="Nexum Logo"
-            width={120}
-            height={48}
-            className="h-10 w-auto"
-            priority
-          />
+          <span className="text-4xl font-black text-[var(--secondary)] font-headline tracking-tight">
+            FIXO
+          </span>
         </Link>
 
         <div className="w-full max-w-md mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-semibold text-[var(--on-background)] tracking-[-0.02em] mb-1">
+            <h2 className="text-3xl font-black text-[var(--primary)] font-headline mb-2">
               Crear Cuenta
             </h2>
-            <p className="text-sm text-[var(--on-surface-variant)]">
-              Elige cómo quieres usar Nexum
+            <p className="text-body-md text-[var(--on-surface-variant)]">
+              Elige cómo quieres usar Fixo
             </p>
           </div>
 
@@ -419,8 +390,7 @@ export default function RegisterPage() {
                     options={departments}
                     placeholder="Seleccione..."
                     isLoading={loadingDepartments}
-                    accentColor="primary"
-                  />
+                                      />
                 </div>
 
                 {/* Municipio */}
@@ -436,8 +406,7 @@ export default function RegisterPage() {
                     placeholder="Seleccione..."
                     disabled={!departmentId}
                     isLoading={loadingMunicipalities}
-                    accentColor="primary"
-                  />
+                                      />
                 </div>
               </div>
 
@@ -456,8 +425,7 @@ export default function RegisterPage() {
                       options={categories}
                       placeholder="Selecciona tu categoría..."
                       isLoading={loadingCategories}
-                      accentColor="secondary"
-                    />
+                                          />
                   </div>
 
                   {/* Subcategories Selection */}
@@ -613,34 +581,19 @@ export default function RegisterPage() {
               )}
             </button>
 
-            {/* Divider */}
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t-2 border-[var(--surface-variant)]" />
-              <span className="flex-shrink-0 mx-4 font-mono text-xs text-[var(--outline)] uppercase tracking-wider">
-                o regístrate con
-              </span>
-              <div className="flex-grow border-t-2 border-[var(--surface-variant)]" />
-            </div>
-
-            {/* Google Button */}
-            <button
-              type="button"
-              className="w-full bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded py-3 px-4 font-mono text-xs uppercase text-[var(--on-background)] hover:bg-[var(--surface-container-low)] transition-colors flex justify-center items-center gap-3"
-            >
-              <GoogleIcon className="w-5 h-5" />
-              Google
-            </button>
           </form>
 
           {/* Footer Link */}
-          <div className="mt-8 text-center text-sm text-[var(--on-surface-variant)]">
-            ¿Ya tienes cuenta?{" "}
-            <Link
-              href="/login"
-              className="text-[var(--on-background)] font-bold hover:text-[var(--primary)] transition-colors border-b-2 border-[var(--on-background)] hover:border-[var(--primary)] pb-0.5 ml-1"
-            >
-              Inicia Sesión
-            </Link>
+          <div className="mt-8 pt-6 border-t-2 border-[var(--primary)]/20 text-center">
+            <p className="text-body-md text-[var(--on-surface-variant)]">
+              ¿Ya tienes cuenta?{" "}
+              <Link
+                href="/login"
+                className="text-label-md font-label text-[var(--secondary)] hover:text-[var(--primary)] font-bold uppercase ml-1"
+              >
+                Inicia Sesión
+              </Link>
+            </p>
           </div>
         </div>
       </main>

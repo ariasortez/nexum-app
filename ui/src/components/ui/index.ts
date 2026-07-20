@@ -1,4 +1,4 @@
-export { Button } from "./button"
+export { Button, ButtonLink } from "./button"
 export { Badge, VerifiedBadge } from "./badge"
 export { Input } from "./input"
 export { Select } from "./select"

@@ -49,16 +49,17 @@ export async function logout(accessToken?: string) {
 }
 
 export async function getMe(userId: string) {
-  const { data: profile, error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
 
-  if (error || !profile) {
+  if (error || !data) {
     throw authErrors.profileNotFound()
   }
 
+  const profile = data as { role?: string | null; [key: string]: unknown }
   let providerProfile = null
   if (profile.role === 'provider') {
     const { data: provider } = await supabaseAdmin

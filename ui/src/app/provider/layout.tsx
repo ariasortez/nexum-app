@@ -1,18 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { useAuthGuard } from "@/hooks/use-auth-guard"
 import { logout } from "@/services/auth"
+import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
+import { getAuthSession } from "@/lib/session"
+import type { AuthUser } from "@/types/auth"
 
-// Material Symbol Icon component
-function Icon({ name, fill = false, className = "" }: { name: string; fill?: boolean; className?: string }) {
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
-      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
     >
       {name}
     </span>
@@ -20,18 +24,20 @@ function Icon({ name, fill = false, className = "" }: { name: string; fill?: boo
 }
 
 const NAV_ITEMS = [
-  { href: "/provider", icon: "dashboard", label: "Dashboard" },
-  { href: "/provider/opportunities", icon: "work_outline", label: "Oportunidades" },
-  { href: "/provider/jobs", icon: "assignment_turned_in", label: "Mis Trabajos" },
-  { href: "/provider/messages", icon: "chat_bubble", label: "Mensajes" },
-  { href: "/provider/finances", icon: "payments", label: "Finanzas" },
-  { href: "/provider/profile", icon: "account_circle", label: "Perfil" },
+  { href: "/provider", icon: "space_dashboard", label: "Inicio" },
+  { href: "/provider/opportunities", icon: "work", label: "Oportunidades" },
+  { href: "/provider/requests", icon: "receipt_long", label: "Cotizaciones" },
+  { href: "/provider/messages", icon: "chat", label: "Mensajes" },
+  { href: "/provider/portfolio", icon: "photo_library", label: "Portafolio" },
+  { href: "/provider/certifications", icon: "workspace_premium", label: "Certificaciones" },
+  { href: "/provider/credits", icon: "toll", label: "Créditos" },
 ]
 
 const MOBILE_NAV_ITEMS = [
-  { href: "/provider", icon: "home", label: "Inicio" },
-  { href: "/provider/opportunities", icon: "explore", label: "Oportunidades" },
-  { href: "/provider/messages", icon: "chat_bubble", label: "Chat" },
+  { href: "/provider", icon: "space_dashboard", label: "Inicio" },
+  { href: "/provider/opportunities", icon: "work", label: "Buscar" },
+  { href: "/provider/requests", icon: "receipt_long", label: "Cotizaciones" },
+  { href: "/provider/messages", icon: "chat", label: "Mensajes" },
   { href: "/provider/profile", icon: "person", label: "Perfil" },
 ]
 
@@ -40,7 +46,15 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const router = useRouter()
   const { isChecking, isAuthorized } = useAuthGuard("provider")
   const [isAvailable, setIsAvailable] = useState(true)
-  const [providerName] = useState("Mario")
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const providerName = currentUser?.full_name?.split(" ")[0] ?? "Proveedor"
+
+  useEffect(() => {
+    if (!isAuthorized) return
+    queueMicrotask(() => {
+      setCurrentUser(getAuthSession()?.user ?? null)
+    })
+  }, [isAuthorized])
 
   const handleLogout = async () => {
     await logout()
@@ -50,9 +64,13 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   if (isChecking || !isAuthorized) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--outline)]">
+        <div className="flex flex-col items-center gap-6">
+          <div className="fixo-loader">
+            <div className="fixo-loader-dot" />
+            <div className="fixo-loader-dot" />
+            <div className="fixo-loader-dot" />
+          </div>
+          <span className="text-label-sm font-label text-[var(--on-surface-variant)] uppercase tracking-wider">
             Cargando...
           </span>
         </div>
@@ -61,101 +79,162 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="bg-[var(--background)] text-[var(--on-background)] min-h-screen">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-clip bg-[var(--background)] text-[var(--on-background)]">
       {/* Desktop Sidebar */}
-      <nav className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-64 bg-[var(--surface-container-lowest)] border-r-2 border-[var(--on-surface)] shadow-[4px_0px_0px_0px_var(--primary-container)] z-40">
-        {/* Provider Info Header */}
-        <div className="p-5 flex items-center gap-3 border-b-2 border-[var(--on-surface)]">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full border-2 border-[var(--on-surface)] overflow-hidden bg-[var(--surface-container-high)]">
-              <Image
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80"
-                alt="Provider Avatar"
-                width={48}
-                height={48}
-                className="object-cover"
-              />
-            </div>
-            {isAvailable && (
-              <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[var(--surface-container-lowest)]" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-[var(--on-surface)] truncate tracking-[-0.02em]">
-              Hola, {providerName}
-            </h2>
-            <button
-              onClick={() => setIsAvailable(!isAvailable)}
-              className="font-mono text-[10px] text-[var(--outline)] uppercase tracking-wider flex items-center gap-1 hover:text-[var(--primary)] transition-colors"
-            >
-              Estado: {isAvailable ? (
-                <span className="text-green-600">Disponible</span>
-              ) : (
-                <span className="text-[var(--outline)]">No Disponible</span>
+      <nav className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-72 bg-[var(--surface)] border-r-4 border-[var(--primary)] z-40">
+        {/* Logo */}
+        <div className="p-6 border-b-4 border-[var(--primary)]">
+          <Link href="/" className="block">
+            <span className="text-4xl font-black text-[var(--secondary)] font-headline tracking-tight">
+              FIXO
+            </span>
+          </Link>
+        </div>
+
+        {/* Provider Info */}
+        <div className="p-6 border-b-2 border-[var(--primary)]/20">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-14 h-14 bg-[var(--primary-container)] border-4 border-[var(--primary)] flex items-center justify-center">
+                <span className="text-2xl font-black text-[var(--primary)] font-headline">
+                  {providerName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              {isAvailable && (
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[var(--surface)]" />
               )}
-            </button>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-[var(--primary)] font-headline">
+                {providerName}
+              </p>
+              <button
+                onClick={() => setIsAvailable(!isAvailable)}
+                className="text-label-sm font-label uppercase tracking-wider flex items-center gap-1"
+              >
+                {isAvailable ? (
+                  <span className="text-green-600 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-500" />
+                    Disponible
+                  </span>
+                ) : (
+                  <span className="text-[var(--on-surface-variant)] flex items-center gap-1">
+                    <span className="w-2 h-2 bg-[var(--on-surface-variant)]" />
+                    No disponible
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <ul className="flex flex-col gap-1 px-4 py-4 flex-grow">
           {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/provider" && pathname.startsWith(item.href))
+
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-4 px-4 py-4 border-4 transition-all ${
+                    isActive
+                      ? "bg-[var(--primary)] border-[var(--primary)] neo-shadow-sm"
+                      : "text-[var(--primary)] border-transparent hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/30"
+                  }`}
+                >
+                  <Icon name={item.icon} filled={isActive} size={28} className={isActive ? "!text-white" : ""} />
+                  <span className={`font-label text-label-md uppercase tracking-wider font-bold ${isActive ? "!text-white" : ""}`}>
+                    {item.label}
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/* Profile & Logout */}
+        <div className="p-4 border-t-2 border-[var(--primary)]/20 space-y-2">
+          <Link
+            href="/provider/profile"
+            className={`flex items-center gap-4 px-4 py-3 border-4 transition-all ${
+              pathname === "/provider/profile"
+                ? "bg-[var(--primary)] border-[var(--primary)]"
+                : "text-[var(--primary)] border-transparent hover:bg-[var(--primary)]/10"
+            }`}
+          >
+            <Icon name="settings" size={24} className={pathname === "/provider/profile" ? "!text-white" : ""} />
+            <span className={`font-label text-label-md uppercase tracking-wider ${pathname === "/provider/profile" ? "!text-white" : ""}`}>
+              Configuración
+            </span>
+          </Link>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-4 px-4 py-3 w-full text-[var(--error)] border-4 border-transparent hover:bg-[var(--error)]/10 hover:border-[var(--error)]/30 transition-all"
+          >
+            <Icon name="logout" size={24} />
+            <span className="font-label text-label-md uppercase tracking-wider">
+              Cerrar Sesión
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="min-h-screen w-full min-w-0 flex-1 overflow-x-clip pb-24 lg:ml-72 lg:pb-0">
+        {/* Mobile Header */}
+        <header className="sticky top-0 z-40 flex w-full max-w-full items-center justify-between overflow-x-clip border-b-4 border-[var(--primary)] bg-[var(--surface)] px-4 py-3 lg:hidden">
+          <Link href="/" className="block">
+            <span className="text-2xl font-black text-[var(--secondary)] font-headline tracking-tight">
+              FIXO
+            </span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAvailable(!isAvailable)}
+              className={`px-3 py-1.5 border-2 text-[10px] font-label font-bold uppercase tracking-wider transition-all ${
+                isAvailable
+                  ? "bg-green-100 border-green-600 text-green-700"
+                  : "bg-[var(--surface-container)] border-[var(--on-surface-variant)] text-[var(--on-surface-variant)]"
+              }`}
+            >
+              {isAvailable ? "Disponible" : "No disponible"}
+            </button>
+            <NotificationsDropdown userId={currentUser?.id} role="provider" />
+          </div>
+        </header>
+
+        {children}
+      </main>
+
+      {/* Desktop Notifications */}
+      <div className="hidden lg:block fixed right-8 top-6 z-50">
+        <NotificationsDropdown userId={currentUser?.id} role="provider" />
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 w-full border-t-4 border-[var(--primary)] bg-[var(--surface)] lg:hidden">
+        <div className="grid grid-cols-5 items-center px-1 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+          {MOBILE_NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/provider" && pathname.startsWith(item.href))
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 p-3 transition-all font-mono uppercase text-xs font-bold rounded-sm ${
-                  isActive
-                    ? "bg-[var(--primary)] text-[var(--on-primary)] border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)]"
-                    : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-variant)] hover:translate-x-1"
+                className={`flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-center transition-colors ${
+                  isActive ? "text-[var(--primary)]" : "text-[var(--on-surface-variant)]"
                 }`}
               >
-                <Icon name={item.icon} fill={isActive} />
-                <span>{item.label}</span>
+                <Icon name={item.icon} filled={isActive} size={22} />
+                <span className="w-full truncate text-[9px] font-label font-bold uppercase tracking-[0.04em]">
+                  {item.label}
+                </span>
               </Link>
             )
           })}
         </div>
-
-        {/* Logout Button */}
-        <div className="p-4 border-t-2 border-[var(--on-surface)]">
-          <button
-            onClick={handleLogout}
-            className="w-full py-3 bg-[var(--error-container)] text-[var(--on-error-container)] font-mono text-xs uppercase tracking-widest border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--error)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_var(--error)] transition-all active:translate-x-[4px] active:translate-y-[4px] active:shadow-none flex justify-center items-center gap-2 rounded-tr-xl rounded-bl-xl rounded-tl-sm rounded-br-sm"
-          >
-            <Icon name="power_settings_new" className="text-base" />
-            Cerrar Sesión
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen pb-24 lg:pb-0">
-        {children}
-      </main>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden flex justify-around items-center h-20 px-2 bg-[var(--surface-container-lowest)]/90 backdrop-blur-lg fixed bottom-0 w-full z-50 border-t-2 border-[var(--on-surface)]">
-        {MOBILE_NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/provider" && pathname.startsWith(item.href))
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center font-mono text-[10px] uppercase font-bold px-4 py-2 transition-all ${
-                isActive
-                  ? "text-[var(--primary)] scale-110"
-                  : "text-[var(--outline)] opacity-70"
-              }`}
-            >
-              <Icon name={item.icon} fill={isActive} className="text-2xl" />
-              <span className="mt-1">{item.label}</span>
-            </Link>
-          )
-        })}
       </nav>
     </div>
   )

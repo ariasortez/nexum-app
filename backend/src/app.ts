@@ -10,7 +10,13 @@ const app = new Hono<{ Variables: Variables }>()
 
 app.use('*', logger())
 app.use('*', cors({
-  origin: env.FRONTEND_URL,
+  origin: (origin) => {
+    if (!origin) return '*'
+    if (origin.includes('localhost') || origin.includes('192.168.')) {
+      return origin
+    }
+    return env.FRONTEND_URL
+  },
   credentials: true,
 }))
 

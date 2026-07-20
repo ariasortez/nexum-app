@@ -62,9 +62,36 @@ export const updateWorkPostSchema = z.object({
   images: z.array(z.string().url()).min(1).max(5).optional(),
 })
 
+export const certificationSchema = z.object({
+  id: z.string().uuid(),
+  provider_id: z.string().uuid(),
+  name: z.string(),
+  issuer: z.string(),
+  description: z.string().nullable(),
+  issue_date: z.string().nullable(),
+  expiry_date: z.string().nullable(),
+  certificate_url: z.string().nullable(),
+  verified: z.boolean(),
+  created_at: z.string(),
+})
+
+export const createCertificationSchema = z.object({
+  name: z.string().min(3).max(150),
+  issuer: z.string().min(2).max(150),
+  description: z.string().max(500).optional(),
+  issue_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  expiry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  certificate_url: z.string().url().optional(),
+})
+
+export const updateCertificationSchema = createCertificationSchema.partial()
+
 export type ProviderProfile = z.infer<typeof providerProfileSchema>
 export type CreateProviderProfile = z.infer<typeof createProviderProfileSchema>
 export type UpdateProviderProfile = z.infer<typeof updateProviderProfileSchema>
 export type WorkPost = z.infer<typeof workPostSchema>
 export type CreateWorkPost = z.infer<typeof createWorkPostSchema>
 export type UpdateWorkPost = z.infer<typeof updateWorkPostSchema>
+export type Certification = z.infer<typeof certificationSchema>
+export type CreateCertification = z.infer<typeof createCertificationSchema>
+export type UpdateCertification = z.infer<typeof updateCertificationSchema>

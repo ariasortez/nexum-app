@@ -1,0 +1,120 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - qa
+          - production
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================
+  # BUILD & TEST
+  # ============================================
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+        working-directory: backend
+
+      - name: Build backend
+        run: pnpm build
+        working-directory: backend
+
+      - name: Build frontend
+        run: pnpm build
+        working-directory: ui
+
+  # ============================================
+  # DEPLOY TO QA (automatic on develop/main)
+  # ============================================
+  deploy-qa:
+    name: Deploy to QA
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: qa
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || github.event.inputs.environment == 'qa'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Backend to Railway (QA)
+        uses: railwayapp/railway-deploy@v1
+        with:
+          service: backend-qa
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_QA }}
+
+      - name: Deploy Frontend to Vercel (QA)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--env QA'
+          alias-domains: qa.fixo.app
+
+      - name: Notify QA Ready
+        run: echo "✅ QA deployment complete! Review at https://qa.fixo.app"
+
+  # ============================================
+  # DEPLOY TO PRODUCTION (requires approval)
+  # ============================================
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-qa
+    runs-on: ubuntu-latest
+    environment: production  # <-- Esto requiere aprobación manual
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Backend to Railway (PROD)
+        uses: railwayapp/railway-deploy@v1
+        with:
+          service: backend-prod
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PROD }}
+
+      - name: Deploy Frontend to Vercel (PROD)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
+      - name: Notify Production Ready
+        run: echo "🚀 Production deployment complete! Live at https://fixo.app"

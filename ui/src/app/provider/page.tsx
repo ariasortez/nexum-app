@@ -1,330 +1,532 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import { useAvailableRequests, useProviderResponses } from "@/hooks/use-requests"
+import { getMe } from "@/services/auth"
+import type { ProfileMe } from "@/types/auth"
+import type { ProviderQuotationSummary, ServiceRequestSummary, UrgencyLevel } from "@/types/requests"
+import { URGENCY_DISPLAY } from "@/types/requests"
 
-// Material Symbol Icon component
-function Icon({ name, fill = false, className = "" }: { name: string; fill?: boolean; className?: string }) {
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
-      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
     >
       {name}
     </span>
   )
 }
 
-// Sample data
-const STATS = [
-  { label: "Ganancias (Mes)", value: "L. 12,450", icon: null, highlight: true },
-  { label: "Trabajos", value: "8", icon: "handyman", highlight: false },
-  { label: "Rating", value: "4.9", suffix: "/5.0", icon: "star", highlight: false },
-  { label: "Respuesta", value: "95%", icon: "bolt", highlight: false },
-]
-
-const OPPORTUNITIES = [
-  {
-    id: "op1",
-    category: "Plomería",
-    categoryIcon: "plumbing",
-    categoryColor: "primary",
-    title: "Fuga severa en baño principal",
-    distance: "2.5 km",
-    time: "Hace 5 min",
-    budget: "L. 800",
-    urgency: "urgente",
-  },
-  {
-    id: "op2",
-    category: "Electricidad",
-    categoryIcon: "electric_bolt",
-    categoryColor: "secondary",
-    title: "Instalación de panel eléctrico",
-    distance: "4.1 km",
-    time: "Hace 12 min",
-    budget: "L. 1,500",
-    urgency: null,
-  },
-  {
-    id: "op3",
-    category: "Limpieza",
-    categoryIcon: "cleaning_services",
-    categoryColor: "tertiary",
-    title: "Limpieza profunda de apartamento",
-    distance: "1.8 km",
-    time: "Hace 25 min",
-    budget: "L. 600",
-    urgency: "esta_semana",
-  },
-]
-
-const CURRENT_JOB = {
-  status: "En Camino",
-  time: "14:30 PM",
-  client: "Carlos R.",
-  title: "Instalación Eléctrica Res.",
-  address: "Col. Florencia Sur, Bloque 4",
+const URGENCY_STYLES: Record<UrgencyLevel, { bg: string; border: string; text: string }> = {
+  emergency: { bg: "bg-[var(--error-container)]", border: "border-[var(--error)]", text: "text-[var(--error)]" },
+  high: { bg: "bg-[var(--primary-container)]", border: "border-[var(--primary)]", text: "text-[var(--primary)]" },
+  medium: { bg: "bg-[var(--primary-container)]", border: "border-[var(--primary)]", text: "text-[var(--primary)]" },
+  low: { bg: "bg-[var(--surface-container)]", border: "border-[var(--on-surface-variant)]", text: "text-[var(--on-surface-variant)]" },
 }
 
-const AGENDA_ITEMS = [
-  { time: "16:00", title: "Revisión de Tuberías", location: "Plaza Miraflores" },
-  { time: "18:30", title: "Mantenimiento AC", location: "Res. Lomas del Guijarro" },
-]
+type DashboardData = {
+  activeJobs: ProviderQuotationSummary[]
+  completedJobs: ProviderQuotationSummary[]
+  currentJob: ProviderQuotationSummary | null
+}
 
 export default function ProviderDashboard() {
+  const { requests: opportunities, isLoading: isLoadingOpportunities, error: opportunitiesError } = useAvailableRequests({ limit: 6 })
+  const { responses, isLoading: isLoadingResponses, error: responsesError } = useProviderResponses({ limit: 50 })
+  const [profile, setProfile] = useState<ProfileMe | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    getMe()
+      .then((data) => { if (isMounted) setProfile(data) })
+      .catch((error: unknown) => {
+        if (isMounted) setProfileError(error instanceof Error ? error.message : "Error al cargar perfil")
+      })
+    return () => { isMounted = false }
+  }, [])
+
+  const dashboardData = useMemo(() => buildDashboardData(responses), [responses])
+  const providerProfile = profile?.provider_profile
+  const providerName = providerProfile?.business_name ?? profile?.full_name ?? "Proveedor"
+  const firstName = providerName.split(" ")[0] ?? "Proveedor"
+  const isLoading = isLoadingOpportunities || isLoadingResponses
+  const error = opportunitiesError ?? responsesError ?? profileError
+
   return (
     <div className="flex flex-col xl:flex-row min-h-screen">
-      {/* Main Content Area */}
-      <div className="flex-1 p-5 lg:p-8 flex flex-col gap-10 max-w-5xl">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[40px] font-bold text-[var(--on-surface)] leading-[1.1] tracking-[-0.04em]">
-                Hola, Mario
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-container)] border-2 border-[var(--on-surface)] rounded-full shadow-[2px_2px_0px_0px_var(--on-surface)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="font-mono text-[10px] text-[var(--on-surface)] uppercase tracking-wider font-bold">
-                  Disponible
-                </span>
-              </span>
-            </div>
-            <p className="text-base text-[var(--on-surface-variant)] flex items-center gap-2">
-              <Icon name="notifications_active" className="text-[var(--primary)]" />
-              Tienes <strong className="text-[var(--on-surface)]">3 nuevas oportunidades</strong> esperando hoy.
-            </p>
-          </div>
-        </header>
-
-        {/* Stats Row */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-5">
-          {STATS.map((stat) => (
-            <div
-              key={stat.label}
-              className={`p-4 rounded-tl-2xl rounded-br-2xl rounded-tr-md rounded-bl-md border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)] flex flex-col justify-between min-h-[120px] transition-transform hover:-translate-y-1 ${
-                stat.highlight
-                  ? "bg-[var(--secondary-container)]"
-                  : "bg-[var(--surface-container)]"
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <span className={`font-mono text-[10px] uppercase tracking-wider ${
-                  stat.highlight ? "text-[var(--on-secondary-container)] opacity-80" : "text-[var(--on-surface-variant)]"
-                }`}>
-                  {stat.label}
-                </span>
-                {stat.icon && (
-                  <Icon
-                    name={stat.icon}
-                    className={stat.icon === "star" ? "text-[var(--secondary)]" : "text-[var(--on-surface-variant)]"}
-                  />
-                )}
-              </div>
-              <div className="mt-auto flex items-baseline gap-1">
-                <span className={`font-mono text-2xl font-semibold ${
-                  stat.highlight ? "text-[var(--on-secondary-container)]" : "text-[var(--on-surface)]"
-                }`}>
-                  {stat.value}
-                </span>
-                {stat.suffix && (
-                  <span className="font-mono text-xs text-[var(--on-surface-variant)]">{stat.suffix}</span>
-                )}
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* Opportunities Section */}
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-[var(--on-surface)] tracking-[-0.02em]">
-              Nuevas Oportunidades
-            </h2>
-            <Link
-              href="/provider/opportunities"
-              className="font-mono text-xs text-[var(--primary)] hover:underline uppercase tracking-wider"
-            >
-              Ver todas
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-            {OPPORTUNITIES.map((opp) => (
-              <article
-                key={opp.id}
-                className="bg-[var(--surface)] p-5 lg:p-6 border-2 border-[var(--on-surface)] rounded-tl-2xl rounded-br-2xl rounded-tr-md rounded-bl-md shadow-[4px_4px_0px_0px_var(--on-surface)] flex flex-col gap-4 relative overflow-hidden group hover:-translate-y-1 transition-transform"
-              >
-                {/* Background decoration */}
-                <div className="absolute -right-6 -top-6 w-24 h-24 bg-[var(--surface-container-high)] rounded-full opacity-50 z-0 group-hover:scale-110 transition-transform" />
-
-                {/* Category & Urgency */}
-                <div className="flex justify-between items-start relative z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[var(--surface-container)] p-1.5 border-2 border-[var(--on-surface)] rounded-md">
-                      <Icon
-                        name={opp.categoryIcon}
-                        className={`text-lg ${
-                          opp.categoryColor === "primary"
-                            ? "text-[var(--primary)]"
-                            : opp.categoryColor === "secondary"
-                            ? "text-[var(--secondary)]"
-                            : "text-[var(--tertiary)]"
-                        }`}
-                      />
-                    </span>
-                    <span className="font-mono text-[10px] text-[var(--on-surface-variant)] uppercase tracking-wider">
-                      {opp.category}
-                    </span>
-                  </div>
-                  {opp.urgency === "urgente" && (
-                    <span className="bg-[var(--error-container)] text-[var(--on-error-container)] font-mono text-[10px] px-2 py-1 rounded-sm border-2 border-[var(--on-surface)] uppercase shadow-[2px_2px_0px_0px_var(--on-surface)] rotate-2">
-                      Urgente
-                    </span>
-                  )}
-                  {opp.urgency === "esta_semana" && (
-                    <span className="bg-[var(--secondary-container)] text-[var(--on-secondary-container)] font-mono text-[10px] px-2 py-1 rounded-sm border-2 border-[var(--on-surface)] uppercase shadow-[2px_2px_0px_0px_var(--on-surface)]">
-                      Esta Semana
-                    </span>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="relative z-10 flex flex-col gap-1">
-                  <h3 className="text-xl font-semibold leading-tight text-[var(--on-surface)] tracking-[-0.02em]">
-                    {opp.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-[var(--on-surface-variant)] text-sm">
-                    <span className="flex items-center gap-1">
-                      <Icon name="location_on" className="text-base" />
-                      {opp.distance}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Icon name="schedule" className="text-base" />
-                      {opp.time}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-auto pt-4 border-t-2 border-[var(--surface-variant)] flex items-center justify-between relative z-10">
-                  <div className="flex flex-col">
-                    <span className="font-mono text-[10px] text-[var(--on-surface-variant)] uppercase">
-                      Presupuesto Ref.
-                    </span>
-                    <span className="font-mono text-lg font-semibold text-[var(--on-surface)]">
-                      {opp.budget}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/provider/opportunities/${opp.id}`}
-                    className={`font-mono text-xs uppercase px-4 py-2 border-2 border-[var(--on-surface)] shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all ${
-                      opp.urgency === "urgente"
-                        ? "bg-[var(--primary)] text-[var(--on-primary)]"
-                        : "bg-[var(--surface)] text-[var(--on-surface)] hover:bg-[var(--surface-container)]"
-                    }`}
-                  >
-                    Cotizar
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+      {/* Main Content */}
+      <div className="flex-1 p-4 lg:p-8 flex flex-col gap-8 max-w-5xl">
+        <DashboardHeader firstName={firstName} opportunityCount={opportunities.length} />
+        <StatsGrid profile={profile} responses={responses} />
+        {error && <DashboardError message={error} />}
+        {isLoading ? <DashboardLoading /> : <OpportunitiesSection opportunities={opportunities} />}
       </div>
 
-      {/* Right Sidebar (Desktop XL) */}
-      <aside className="w-full xl:w-96 border-t-2 xl:border-t-0 xl:border-l-2 border-[var(--on-surface)] bg-[var(--surface-bright)] p-5 lg:p-6 flex flex-col gap-10">
-        {/* Current Job */}
-        <section className="flex flex-col gap-4">
-          <h2 className="text-2xl font-semibold text-[var(--on-surface)] tracking-[-0.02em]">
-            Trabajo Actual
-          </h2>
-
-          <div className="bg-[var(--primary-container)] text-[var(--on-primary-container)] p-5 border-2 border-[var(--on-surface)] rounded-tl-2xl rounded-br-2xl rounded-tr-md rounded-bl-md shadow-[4px_4px_0px_0px_var(--on-surface)] flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <span className="bg-[var(--background)] text-[var(--on-surface)] font-mono text-[10px] px-2 py-1 rounded-sm border-2 border-[var(--on-surface)] uppercase">
-                {CURRENT_JOB.status}
-              </span>
-              <span className="font-mono text-xs opacity-80 uppercase">
-                {CURRENT_JOB.time}
-              </span>
-            </div>
-
-            <div>
-              <p className="font-mono text-[10px] uppercase opacity-80 mb-1">
-                Cliente: {CURRENT_JOB.client}
-              </p>
-              <h3 className="text-xl font-semibold leading-tight tracking-[-0.02em]">
-                {CURRENT_JOB.title}
-              </h3>
-              <p className="text-sm mt-2 opacity-90 flex items-center gap-1">
-                <Icon name="pin_drop" className="text-base" />
-                {CURRENT_JOB.address}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <button className="bg-[var(--background)] text-[var(--on-surface)] font-mono text-xs uppercase py-2.5 border-2 border-[var(--on-surface)] shadow-[2px_2px_0px_0px_var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors flex justify-center items-center gap-2 rounded-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_var(--on-surface)]">
-                <Icon name="chat" className="text-lg" />
-                Chat
-              </button>
-              <button className="bg-[var(--on-surface)] text-[var(--surface)] font-mono text-xs uppercase py-2.5 border-2 border-[var(--on-surface)] shadow-[2px_2px_0px_0px_var(--on-surface)] hover:bg-[var(--on-surface-variant)] transition-colors flex justify-center items-center gap-2 rounded-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_var(--on-surface)]">
-                <Icon name="directions" className="text-lg" />
-                Navegar
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Agenda */}
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b-2 border-[var(--on-surface)] pb-2">
-            <h2 className="text-xl font-semibold text-[var(--on-surface)] tracking-[-0.02em]">
-              Agenda Hoy
-            </h2>
-            <span className="bg-[var(--surface-container)] text-[var(--on-surface)] font-mono text-[10px] px-2 py-0.5 rounded-full border-2 border-[var(--on-surface)]">
-              {AGENDA_ITEMS.length} Restantes
-            </span>
-          </div>
-
-          <div className="flex flex-col divide-y-2 divide-[var(--surface-container)]">
-            {AGENDA_ITEMS.map((item, index) => (
-              <div
-                key={index}
-                className="py-3 flex items-start gap-3 hover:bg-[var(--surface-container)] px-2 transition-colors -mx-2 rounded-md cursor-pointer"
-              >
-                <div className="flex flex-col items-center min-w-[50px]">
-                  <span className={`font-mono text-lg font-semibold text-[var(--on-surface)] leading-none ${
-                    index > 0 ? "opacity-60" : ""
-                  }`}>
-                    {item.time}
-                  </span>
-                </div>
-                <div className={`flex-1 flex flex-col ${index > 0 ? "opacity-80" : ""}`}>
-                  <h4 className="text-base font-semibold text-[var(--on-surface)] leading-tight">
-                    {item.title}
-                  </h4>
-                  <span className="font-mono text-[10px] text-[var(--on-surface-variant)] uppercase mt-1">
-                    {item.location}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {AGENDA_ITEMS.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center py-8">
-              <div className="w-16 h-16 bg-[var(--surface-container)] rounded-full flex items-center justify-center mb-3 border border-[var(--outline-variant)]">
-                <Icon name="event_available" className="text-[var(--outline)] text-2xl" />
-              </div>
-              <p className="text-sm text-[var(--outline)]">
-                No hay más trabajos programados para hoy
-              </p>
-            </div>
-          )}
-        </section>
+      {/* Sidebar */}
+      <aside className="w-full xl:w-96 border-t-4 xl:border-t-0 xl:border-l-4 border-[var(--primary)] bg-[var(--surface)] p-4 lg:p-6 flex flex-col gap-8">
+        <CurrentJobSection job={dashboardData.currentJob} />
+        <AgendaSection jobs={dashboardData.activeJobs} />
       </aside>
     </div>
   )
+}
+
+function DashboardHeader({ firstName, opportunityCount }: { firstName: string; opportunityCount: number }) {
+  return (
+    <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div>
+        <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider mb-2">
+          Panel proveedor
+        </p>
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-[var(--primary)] font-headline leading-none">
+          Hola, {firstName}
+        </h1>
+        <p className="mt-3 text-body-md text-[var(--on-surface-variant)]">
+          Tienes <span className="font-bold text-[var(--primary)]">{formatOpportunityCount(opportunityCount)}</span> para revisar.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 self-start px-3 py-2 bg-green-100 border-4 border-green-600 shadow-[3px_3px_0px_0px_rgba(22,163,74,1)]">
+        <span className="w-2.5 h-2.5 bg-green-600" />
+        <span className="text-label-sm font-label font-bold uppercase tracking-wider text-green-800">
+          Disponible
+        </span>
+      </div>
+    </header>
+  )
+}
+
+function StatsGrid({ profile, responses }: { profile: ProfileMe | null; responses: ProviderQuotationSummary[] }) {
+  const providerProfile = profile?.provider_profile
+  const acceptedCount = responses.filter((r) => r.status === "accepted").length
+  const completedCount = responses.filter((r) => r.status === "completed").length
+  const rating = providerProfile?.avg_rating
+  const totalReviews = providerProfile?.total_reviews ?? 0
+  const responseTime = providerProfile?.response_time_avg
+
+  return (
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <StatCard
+        label="Ganancias (Mes)"
+        value="--"
+        detail="Próximamente"
+        icon="payments"
+        highlight
+      />
+      <StatCard
+        label="Trabajos"
+        value={`${acceptedCount + completedCount}`}
+        detail={`${acceptedCount} activo${acceptedCount === 1 ? "" : "s"}`}
+        icon="construction"
+      />
+      <StatCard
+        label="Rating"
+        value={typeof rating === "number" ? rating.toFixed(1) : "Nuevo"}
+        detail={`${totalReviews} reseña${totalReviews === 1 ? "" : "s"}`}
+        icon="star"
+      />
+      <StatCard
+        label="Respuesta"
+        value={formatResponseTime(responseTime)}
+        detail="Promedio"
+        icon="schedule"
+      />
+    </section>
+  )
+}
+
+function StatCard({ label, value, detail, icon, highlight = false }: {
+  label: string
+  value: string
+  detail: string
+  icon: string
+  highlight?: boolean
+}) {
+  return (
+    <article className={`border-4 p-4 transition-all ${
+      highlight
+        ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]"
+        : "bg-[var(--surface)] border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]"
+    }`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-[10px] font-label uppercase tracking-wider ${highlight ? "text-white/80" : "text-[var(--on-surface-variant)]"}`}>
+          {label}
+        </p>
+        <Icon name={icon} size={20} className={highlight ? "text-white/80" : "text-[var(--primary)]"} />
+      </div>
+      <p className={`mt-3 text-3xl font-black font-headline ${highlight ? "text-white" : "text-[var(--primary)]"}`}>
+        {value}
+      </p>
+      <p className={`mt-1 text-[10px] font-label uppercase tracking-wider ${highlight ? "text-white/70" : "text-[var(--on-surface-variant)]"}`}>
+        {detail}
+      </p>
+    </article>
+  )
+}
+
+function DashboardError({ message }: { message: string }) {
+  return (
+    <div className="border-4 border-[var(--error)] bg-[var(--error-container)] p-4 shadow-[4px_4px_0px_0px_rgba(211,52,0,1)]">
+      <div className="flex items-start gap-3">
+        <Icon name="error" filled size={24} className="text-[var(--error)]" />
+        <div>
+          <p className="text-label-sm font-label uppercase tracking-wider text-[var(--error)] font-bold">
+            Error al cargar datos
+          </p>
+          <p className="mt-1 text-sm text-[var(--on-error-container)]">{message}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardLoading() {
+  return (
+    <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="min-h-[190px] animate-pulse border-4 border-[var(--primary)]/30 bg-[var(--surface-container)] p-4">
+          <div className="h-6 w-28 bg-[var(--primary)]/20" />
+          <div className="mt-8 h-5 w-4/5 bg-[var(--primary)]/20" />
+          <div className="mt-3 h-4 w-2/3 bg-[var(--primary)]/20" />
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function OpportunitiesSection({ opportunities }: { opportunities: ServiceRequestSummary[] }) {
+  return (
+    <section>
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider">
+            Oportunidades
+          </p>
+          <h2 className="text-2xl lg:text-3xl font-black text-[var(--primary)] font-headline">
+            Solicitudes disponibles
+          </h2>
+        </div>
+        <Link
+          href="/provider/opportunities"
+          className="text-label-sm font-label font-bold uppercase tracking-wider text-[var(--primary)] hover:underline flex items-center gap-1"
+        >
+          Ver todas
+          <Icon name="arrow_forward" size={16} />
+        </Link>
+      </div>
+
+      {opportunities.length === 0 ? (
+        <EmptyOpportunities />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {opportunities.map((request) => (
+            <OpportunityCard key={request.id} request={request} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function OpportunityCard({ request }: { request: ServiceRequestSummary }) {
+  const urgency = URGENCY_DISPLAY[request.urgency]
+  const urgencyStyle = URGENCY_STYLES[request.urgency]
+  const categoryName = request.subcategory?.name ?? "Sin categoría"
+
+  return (
+    <article className="group flex flex-col bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 px-2 py-1 bg-[var(--primary-container)] border-2 border-[var(--primary)]">
+            <Icon name={getCategoryIcon(categoryName)} filled size={16} className="text-[var(--primary)]" />
+            <span className="text-[10px] font-label font-bold uppercase tracking-wider text-[var(--primary)]">
+              {categoryName}
+            </span>
+          </div>
+          <span className={`px-2 py-1 text-[10px] font-label font-bold uppercase tracking-wider border-2 ${urgencyStyle.bg} ${urgencyStyle.border} ${urgencyStyle.text}`}>
+            {urgency.label}
+          </span>
+        </div>
+
+        <h3 className="mt-4 text-lg font-bold font-headline text-[var(--on-surface)] line-clamp-2 group-hover:text-[var(--primary)]">
+          {request.title}
+        </h3>
+        <p className="mt-2 line-clamp-2 text-sm text-[var(--on-surface-variant)]">
+          {request.description}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <InfoPill icon="location_on" label={formatLocation(request)} />
+          <InfoPill icon="schedule" label={formatRelativeTime(request.created_at)} />
+          <InfoPill icon="payments" label="Por cotizar" />
+          <InfoPill icon="person" label={request.client?.full_name ?? "Cliente"} />
+        </div>
+      </div>
+
+      <Link
+        href={`/provider/opportunities/${request.id}`}
+        className="mt-auto flex items-center justify-center gap-2 border-t-4 border-[var(--primary)] py-3 text-label-sm font-label font-bold uppercase tracking-wider text-[var(--primary)] group-hover:bg-[var(--primary)] group-hover:text-white transition-all"
+      >
+        Ver detalles
+        <Icon name="arrow_forward" size={16} />
+      </Link>
+    </article>
+  )
+}
+
+function EmptyOpportunities() {
+  return (
+    <div className="border-4 border-[var(--primary)] bg-[var(--surface)] p-8 text-center shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]">
+      <div className="mx-auto w-16 h-16 flex items-center justify-center bg-[var(--primary-container)] border-4 border-[var(--primary)]">
+        <Icon name="inbox" size={32} className="text-[var(--primary)]" />
+      </div>
+      <h3 className="mt-4 text-xl font-bold font-headline text-[var(--primary)]">
+        No hay solicitudes disponibles
+      </h3>
+      <p className="mt-2 text-sm text-[var(--on-surface-variant)] max-w-md mx-auto">
+        Cuando aparezcan solicitudes compatibles con tus categorías, se mostrarán aquí.
+      </p>
+    </div>
+  )
+}
+
+function CurrentJobSection({ job }: { job: ProviderQuotationSummary | null }) {
+  return (
+    <section>
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider">
+          Trabajo actual
+        </p>
+        {job && <StatusBadge status={job.status} />}
+      </div>
+      {job ? <CurrentJobCard job={job} /> : <EmptyCurrentJob />}
+    </section>
+  )
+}
+
+function CurrentJobCard({ job }: { job: ProviderQuotationSummary }) {
+  const request = job.request
+
+  return (
+    <article className="bg-[var(--surface)] border-4 border-[var(--primary)] p-5 shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]">
+      <div className="flex items-start gap-4">
+        <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-[var(--primary-container)] border-4 border-[var(--primary)]">
+          <Icon name={getCategoryIcon(request?.subcategory?.name)} filled size={28} className="text-[var(--primary)]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-label uppercase tracking-wider text-[var(--on-surface-variant)]">
+            {request?.client?.full_name ?? "Cliente"}
+          </p>
+          <h3 className="mt-1 text-lg font-bold font-headline text-[var(--primary)] line-clamp-2">
+            {request?.title ?? "Solicitud aceptada"}
+          </h3>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <InfoLine icon="location_on" label={formatJobLocation(job)} />
+        <InfoLine icon="event" label="Por coordinar" />
+        <InfoLine icon="payments" label={formatPrice(job.estimated_price)} />
+      </div>
+
+      <div className="mt-5 grid gap-2">
+        <Link
+          href="/provider/messages"
+          className="flex items-center justify-center gap-2 py-3 bg-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all"
+        >
+          <Icon name="chat" size={18} className="!text-white" />
+          <span className="!text-white">Abrir chat</span>
+        </Link>
+        <Link
+          href={`/provider/requests/${job.id}`}
+          className="flex items-center justify-center gap-2 py-3 bg-[var(--surface)] text-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider hover:bg-[var(--primary-container)] transition-all"
+        >
+          <Icon name="visibility" size={18} />
+          Ver cotización
+        </Link>
+      </div>
+    </article>
+  )
+}
+
+function EmptyCurrentJob() {
+  return (
+    <div className="bg-[var(--surface)] border-4 border-[var(--primary)] p-5 text-center shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]">
+      <div className="mx-auto w-14 h-14 flex items-center justify-center bg-[var(--primary-container)] border-4 border-[var(--primary)]">
+        <Icon name="work_history" size={28} className="text-[var(--primary)]" />
+      </div>
+      <h3 className="mt-4 text-lg font-bold font-headline text-[var(--primary)]">
+        Sin trabajo activo
+      </h3>
+      <p className="mt-2 text-sm text-[var(--on-surface-variant)]">
+        Tus cotizaciones aceptadas aparecerán aquí.
+      </p>
+    </div>
+  )
+}
+
+function AgendaSection({ jobs }: { jobs: ProviderQuotationSummary[] }) {
+  return (
+    <section>
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider">
+            Agenda
+          </p>
+          <h2 className="text-xl font-black font-headline text-[var(--primary)]">
+            Próximos trabajos
+          </h2>
+        </div>
+        <span className="px-2 py-1 bg-[var(--primary-container)] border-2 border-[var(--primary)] text-[10px] font-label font-bold uppercase text-[var(--primary)]">
+          {jobs.length}
+        </span>
+      </div>
+
+      {jobs.length === 0 ? (
+        <div className="border-4 border-dashed border-[var(--primary)]/40 p-4 text-sm text-[var(--on-surface-variant)]">
+          No hay trabajos aceptados para coordinar.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {jobs.slice(0, 4).map((job) => (
+            <AgendaItem key={job.id} job={job} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AgendaItem({ job }: { job: ProviderQuotationSummary }) {
+  return (
+    <Link
+      href={`/provider/requests/${job.id}`}
+      className="block bg-[var(--surface)] border-4 border-[var(--primary)] p-3 hover:bg-[var(--primary-container)] transition-all"
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-1 w-3 h-3 bg-[var(--primary)] shrink-0" />
+        <div className="min-w-0">
+          <p className="text-[10px] font-label font-bold uppercase tracking-wider text-[var(--primary)]">
+            Por coordinar
+          </p>
+          <h3 className="mt-1 line-clamp-1 text-sm font-bold text-[var(--on-surface)]">
+            {job.request?.title ?? "Trabajo aceptado"}
+          </h3>
+          <p className="mt-1 line-clamp-1 text-xs text-[var(--on-surface-variant)]">
+            {formatJobLocation(job)}
+          </p>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function InfoPill({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1.5 bg-[var(--surface-container)] border-2 border-[var(--primary)]/30 text-[10px] font-label uppercase tracking-wider text-[var(--on-surface-variant)]">
+      <Icon name={icon} size={14} className="text-[var(--primary)]" />
+      <span className="truncate">{label}</span>
+    </div>
+  )
+}
+
+function InfoLine({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[10px] font-label uppercase tracking-wider text-[var(--on-surface-variant)]">
+      <Icon name={icon} size={16} className="text-[var(--primary)]" />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function StatusBadge({ status }: { status: ProviderQuotationSummary["status"] }) {
+  const config: Record<ProviderQuotationSummary["status"], { label: string; bg: string; border: string; text: string }> = {
+    pending: { label: "Pendiente", bg: "bg-[var(--surface-container)]", border: "border-[var(--on-surface-variant)]", text: "text-[var(--on-surface-variant)]" },
+    accepted: { label: "Aceptada", bg: "bg-green-100", border: "border-green-600", text: "text-green-800" },
+    rejected: { label: "Rechazada", bg: "bg-[var(--error-container)]", border: "border-[var(--error)]", text: "text-[var(--error)]" },
+    completed: { label: "Completada", bg: "bg-[var(--primary-container)]", border: "border-[var(--primary)]", text: "text-[var(--primary)]" },
+    cancelled: { label: "Cancelada", bg: "bg-[var(--surface-container)]", border: "border-[var(--on-surface-variant)]", text: "text-[var(--on-surface-variant)]" },
+  }
+  const c = config[status]
+
+  return (
+    <span className={`px-2 py-1 text-[10px] font-label font-bold uppercase tracking-wider border-2 ${c.bg} ${c.border} ${c.text}`}>
+      {c.label}
+    </span>
+  )
+}
+
+function buildDashboardData(responses: ProviderQuotationSummary[]): DashboardData {
+  const activeJobs = responses.filter((r) => r.status === "accepted" && r.request)
+  const completedJobs = responses.filter((r) => r.status === "completed")
+  return { activeJobs, completedJobs, currentJob: activeJobs[0] ?? null }
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  plomería: "plumbing",
+  electricidad: "electrical_services",
+  "aire acondicionado": "ac_unit",
+  climatización: "ac_unit",
+  carpintería: "carpenter",
+  pintura: "format_paint",
+  limpieza: "cleaning_services",
+  jardinería: "yard",
+  cerrajería: "lock",
+  mudanzas: "local_shipping",
+  default: "handyman",
+}
+
+function getCategoryIcon(categoryName: string | undefined): string {
+  if (!categoryName) return CATEGORY_ICONS.default
+  return CATEGORY_ICONS[categoryName.toLowerCase()] ?? CATEGORY_ICONS.default
+}
+
+function formatLocation(request: ServiceRequestSummary): string {
+  if (request.municipality?.name && request.department?.name) {
+    return `${request.municipality.name}, ${request.department.name}`
+  }
+  return request.municipality?.name ?? request.department?.name ?? "Ubicación pendiente"
+}
+
+function formatJobLocation(job: ProviderQuotationSummary): string {
+  const request = job.request
+  if (request?.municipality?.name && request.department?.name) {
+    return `${request.municipality.name}, ${request.department.name}`
+  }
+  return request?.municipality?.name ?? request?.department?.name ?? "Ubicación pendiente"
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMinutes < 1) return "Ahora"
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`
+  if (diffHours < 24) return `Hace ${diffHours} h`
+  if (diffDays < 7) return `Hace ${diffDays} d`
+  return date.toLocaleDateString("es-HN", { day: "numeric", month: "short" })
+}
+
+function formatPrice(price: number | null): string {
+  if (typeof price !== "number") return "Precio pendiente"
+  return `L. ${price.toLocaleString("es-HN")}`
+}
+
+function formatResponseTime(minutes: number | null | undefined): string {
+  if (typeof minutes !== "number") return "--"
+  if (minutes < 60) return `${Math.round(minutes)} min`
+  return `${Math.round(minutes / 60)} h`
+}
+
+function formatOpportunityCount(count: number): string {
+  return count === 1 ? "1 oportunidad disponible" : `${count} oportunidades disponibles`
 }

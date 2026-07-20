@@ -8,6 +8,7 @@ import { useDepartments, useMunicipalities } from "@/hooks/use-locations"
 import { useCategories } from "@/hooks/use-categories"
 import { getAuthSession, clearAuthSession } from "@/lib/session"
 import { toast } from "@/lib/toast"
+import { Button, ButtonLink } from "@/components/ui"
 import type { AuthUser } from "@/types/auth"
 
 // Material Symbol Icon component
@@ -238,7 +239,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+          <div className="fixo-loader"><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /></div>
           <span className="font-mono text-xs uppercase tracking-wider text-[var(--outline)]">
             Cargando...
           </span>
@@ -340,6 +341,8 @@ export default function ProfilePage() {
                 </label>
                 <input
                   type="tel"
+                  inputMode="tel"
+                  pattern="[0-9+\-\s()]*"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+504 9999-9999"
@@ -489,6 +492,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="number"
+                    inputMode="numeric"
                     value={yearsExperience}
                     onChange={(e) => setYearsExperience(e.target.value)}
                     min="0"
@@ -591,14 +595,15 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex justify-end pt-2">
-                <button
+                <Button
                   type="button"
                   onClick={handleUpdatePassword}
                   disabled={!currentPassword || !newPassword || newPassword !== confirmNewPassword}
-                  className="bg-[var(--on-surface)] text-[var(--surface)] px-6 py-2 font-mono text-xs uppercase border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)] hover:bg-[var(--outline)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="dark"
+                  size="sm"
                 >
                   Actualizar Contraseña
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -606,17 +611,18 @@ export default function ProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col md:flex-row justify-end items-center gap-4 pt-4">
-          <Link
+          <ButtonLink
             href={isProvider ? "/provider" : "/client"}
-            className="w-full md:w-auto px-6 py-3 bg-transparent text-[var(--on-surface)] font-mono text-xs uppercase border-2 border-[var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors text-center"
+            variant="secondary"
+            className="w-full md:w-auto"
           >
             Cancelar
-          </Link>
-          <button
+          </ButtonLink>
+          <Button
             type="button"
             onClick={handleSaveChanges}
             disabled={isSaving}
-            className="w-full md:w-auto px-6 py-3 bg-[var(--primary)] text-[var(--on-primary)] font-mono text-xs uppercase border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)] hover:shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full md:w-auto"
           >
             {isSaving ? (
               <>
@@ -626,26 +632,28 @@ export default function ProfilePage() {
             ) : (
               "Guardar Cambios"
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Danger Zone */}
         <div className="border-t-2 border-[var(--surface-container)] pt-6 mt-10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <button
+          <Button
             type="button"
             onClick={handleLogout}
-            className="text-[var(--outline)] font-mono text-xs uppercase hover:text-[var(--on-surface)] transition-colors flex items-center gap-1"
+            variant="danger"
+            size="sm"
           >
             <Icon name="logout" className="text-base" />
             Cerrar Sesión
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="text-[var(--error)] font-mono text-xs uppercase hover:text-[var(--on-error-container)] transition-colors flex items-center gap-1"
+            variant="danger"
+            size="sm"
           >
             <Icon name="delete_forever" className="text-base" />
             Eliminar Cuenta
-          </button>
+          </Button>
         </div>
       </main>
 

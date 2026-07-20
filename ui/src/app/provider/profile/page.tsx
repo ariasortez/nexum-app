@@ -2,67 +2,48 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useDepartments, useMunicipalities } from "@/hooks/use-locations"
 import { useCategories } from "@/hooks/use-categories"
-import { getAuthSession, clearAuthSession } from "@/lib/session"
+import { getAuthSession, updateStoredAuthUser } from "@/lib/session"
 import { toast } from "@/lib/toast"
+import { changePassword, getMe, logout, updateMyProfile, updateMyProviderProfile } from "@/services/auth"
 
-// Material Symbol Icon component
-function Icon({ name, fill = false, className = "" }: { name: string; fill?: boolean; className?: string }) {
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
-      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
     >
       {name}
     </span>
   )
 }
 
-// Custom Select Component
 type SelectOption = { id: string; name: string }
 
-interface CustomSelectProps {
+function CustomSelect({ value, onChange, options, placeholder, disabled = false, isLoading = false }: {
   value: string
   onChange: (value: string) => void
   options: SelectOption[]
   placeholder: string
   disabled?: boolean
   isLoading?: boolean
-}
-
-function CustomSelect({
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled = false,
-  isLoading = false,
-}: CustomSelectProps) {
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-
   const selectedOption = options.find((opt) => opt.id === value)
   const displayText = isLoading ? "Cargando..." : selectedOption?.name || placeholder
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setIsOpen(false)
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
-
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsOpen(false)
-    }
-    document.addEventListener("keydown", handleEscape)
-    return () => document.removeEventListener("keydown", handleEscape)
   }, [])
 
   return (
@@ -71,40 +52,34 @@ function CustomSelect({
         type="button"
         onClick={() => !disabled && !isLoading && setIsOpen(!isOpen)}
         disabled={disabled || isLoading}
-        className={`w-full text-left bg-transparent border-0 border-b-2 px-0 py-2 text-base transition-colors flex items-center justify-between ${
-          isOpen ? "border-[var(--primary)]" : "border-[var(--on-surface)]"
-        } ${disabled || isLoading ? "opacity-50 cursor-not-allowed text-[var(--outline)]" : "cursor-pointer text-[var(--on-surface)]"}`}
+        className={`w-full text-left bg-[var(--surface)] border-2 px-4 py-3 text-sm transition-all flex items-center justify-between ${
+          isOpen ? "border-[var(--primary)] shadow-[2px_2px_0px_0px_rgba(27,48,34,1)]" : "border-[var(--primary)]/50"
+        } ${disabled || isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[var(--primary)]"}`}
       >
-        <span className={!selectedOption ? "text-[var(--outline)]" : ""}>
+        <span className={!selectedOption ? "text-[var(--on-surface-variant)]" : "text-[var(--on-surface)]"}>
           {displayText}
         </span>
-        <Icon
-          name={isOpen ? "expand_less" : "expand_more"}
-          className={`text-xl ${isOpen ? "text-[var(--primary)]" : "text-[var(--outline)]"}`}
-        />
+        <Icon name={isOpen ? "expand_less" : "expand_more"} size={20} className={isOpen ? "text-[var(--primary)]" : "text-[var(--on-surface-variant)]"} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm shadow-[4px_4px_0px_0px_var(--on-surface)] max-h-48 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] max-h-48 overflow-y-auto">
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-[var(--outline)]">No hay opciones</div>
+            <div className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">No hay opciones</div>
           ) : (
-            options.map((option, index) => (
+            options.map((option) => (
               <button
                 key={option.id}
                 type="button"
-                onClick={() => {
-                  onChange(option.id)
-                  setIsOpen(false)
-                }}
-                className={`w-full text-left px-4 py-3 text-base transition-colors ${
+                onClick={() => { onChange(option.id); setIsOpen(false) }}
+                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
                   option.id === value
-                    ? "bg-[var(--primary)] text-[var(--on-primary)]"
+                    ? "bg-[var(--primary)]"
                     : "text-[var(--on-surface)] hover:bg-[var(--primary-container)]"
-                } ${index === 0 ? "rounded-tl-2xl" : ""} ${index === options.length - 1 ? "rounded-br-2xl" : ""}`}
+                }`}
               >
-                <span className="flex items-center gap-2">
-                  {option.id === value && <Icon name="check" className="text-lg" />}
+                <span className={`flex items-center gap-2 ${option.id === value ? "!text-white" : ""}`}>
+                  {option.id === value && <Icon name="check" size={18} className="!text-white" />}
                   {option.name}
                 </span>
               </button>
@@ -116,16 +91,13 @@ function CustomSelect({
   )
 }
 
-// Password strength calculator
 function getPasswordStrength(password: string): { level: number; label: string } {
   if (!password) return { level: 0, label: "" }
-
   let score = 0
   if (password.length >= 8) score++
   if (/[A-Z]/.test(password)) score++
   if (/[0-9]/.test(password)) score++
   if (/[^A-Za-z0-9]/.test(password)) score++
-
   if (score <= 1) return { level: 1, label: "Débil" }
   if (score <= 2) return { level: 2, label: "Media" }
   if (score === 3) return { level: 3, label: "Buena" }
@@ -134,29 +106,28 @@ function getPasswordStrength(password: string): { level: number; label: string }
 
 export default function ProviderProfilePage() {
   const router = useRouter()
+  const initialSession = getAuthSession()
+  const [isProfileLoading, setIsProfileLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Form state - Personal
-  const [fullName, setFullName] = useState("")
-  const [email, setEmail] = useState("")
+  const [fullName, setFullName] = useState(initialSession?.user.full_name || "")
+  const [email] = useState(initialSession?.user.email || "")
   const [phone, setPhone] = useState("")
   const [departmentId, setDepartmentId] = useState("")
   const [municipalityId, setMunicipalityId] = useState("")
 
-  // Form state - Professional
   const [businessName, setBusinessName] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState("")
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([])
   const [description, setDescription] = useState("")
   const [yearsExperience, setYearsExperience] = useState("")
+  const [providerSlug, setProviderSlug] = useState("")
 
-  // Security section
   const [securityExpanded, setSecurityExpanded] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
 
-  // Data hooks
   const { departments, isLoading: loadingDepartments } = useDepartments()
   const { municipalities, isLoading: loadingMunicipalities } = useMunicipalities(departmentId || null)
   const { categories, isLoading: loadingCategories } = useCategories()
@@ -164,16 +135,45 @@ export default function ProviderProfilePage() {
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId)
   const availableSubcategories = selectedCategory?.subcategories || []
   const passwordStrength = getPasswordStrength(newPassword)
+  const findSubcategoryById = (subcategoryId: string) =>
+    categories.flatMap((c) => c.subcategories).find((s) => s.id === subcategoryId)
 
-  // Load user data
   useEffect(() => {
     const session = getAuthSession()
-    if (session?.user) {
-      setFullName(session.user.full_name || "")
-      setEmail(session.user.email || "")
-      // TODO: Load full profile data from API
+    if (!session?.user) { router.replace("/login?next=/provider/profile"); return }
+
+    async function loadProfile() {
+      try {
+        const profile = await getMe()
+        setFullName(profile.full_name || "")
+        setPhone(profile.phone || "")
+        setDepartmentId(profile.department_id || "")
+        setMunicipalityId(profile.municipality_id || "")
+
+        const providerProfile = profile.provider_profile
+        if (providerProfile) {
+          setProviderSlug(providerProfile.slug || "")
+          setBusinessName(providerProfile.business_name || "")
+          setDescription(providerProfile.description || "")
+          const subcategoryIds = (providerProfile.categories ?? [])
+            .map((item) => item.subcategory)
+            .filter((s): s is NonNullable<typeof s> => Boolean(s))
+            .map((s) => s.id)
+          setSelectedSubcategoryIds(subcategoryIds)
+
+          const firstMainCategoryId = (providerProfile.categories ?? [])
+            .map((item) => item.subcategory?.main_category?.id)
+            .find((id): id is string => Boolean(id))
+          if (firstMainCategoryId) setSelectedCategoryId(firstMainCategoryId)
+        }
+      } catch (error) {
+        toast.error("No se pudo cargar el perfil", { description: error instanceof Error ? error.message : "Intenta de nuevo más tarde." })
+      } finally {
+        setIsProfileLoading(false)
+      }
     }
-  }, [])
+    void loadProfile()
+  }, [router])
 
   function handleCategoryChange(categoryId: string) {
     setSelectedCategoryId(categoryId)
@@ -182,9 +182,7 @@ export default function ProviderProfilePage() {
 
   function toggleSubcategory(subcategoryId: string) {
     setSelectedSubcategoryIds((prev) =>
-      prev.includes(subcategoryId)
-        ? prev.filter((id) => id !== subcategoryId)
-        : [...prev, subcategoryId]
+      prev.includes(subcategoryId) ? prev.filter((id) => id !== subcategoryId) : [...prev, subcategoryId]
     )
   }
 
@@ -194,88 +192,121 @@ export default function ProviderProfilePage() {
 
   async function handleSaveChanges() {
     setIsSaving(true)
-    // TODO: Implement API call to save profile
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    toast.success("Perfil actualizado", { description: "Los cambios se guardaron correctamente." })
-    setIsSaving(false)
+    try {
+      const profile = await updateMyProfile({
+        full_name: fullName.trim() || undefined,
+        phone: phone.trim() || undefined,
+        department_id: departmentId || undefined,
+        municipality_id: municipalityId || undefined,
+      })
+      await updateMyProviderProfile({
+        business_name: businessName.trim() || undefined,
+        description: description.trim() || undefined,
+        department_id: departmentId || undefined,
+        municipality_id: municipalityId || undefined,
+        subcategory_ids: selectedSubcategoryIds.length > 0 ? selectedSubcategoryIds : undefined,
+      })
+      updateStoredAuthUser((user) => ({ ...user, full_name: profile.full_name }))
+      toast.success("Perfil actualizado", { description: "Los cambios se guardaron correctamente." })
+    } catch (error) {
+      toast.error("No se pudo actualizar el perfil", { description: error instanceof Error ? error.message : "Intenta de nuevo más tarde." })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   async function handleUpdatePassword() {
-    if (newPassword !== confirmNewPassword) {
-      toast.error("Error", { description: "Las contraseñas no coinciden." })
-      return
+    if (newPassword !== confirmNewPassword) { toast.error("Las contraseñas no coinciden"); return }
+    if (newPassword.length < 8) { toast.error("La contraseña debe tener al menos 8 caracteres"); return }
+    try {
+      await changePassword({ current_password: currentPassword, new_password: newPassword })
+      toast.success("Contraseña actualizada")
+      setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword("")
+    } catch (error) {
+      toast.error("No se pudo actualizar la contraseña", { description: error instanceof Error ? error.message : "Intenta de nuevo más tarde." })
     }
-    if (newPassword.length < 8) {
-      toast.error("Error", { description: "La contraseña debe tener al menos 8 caracteres." })
-      return
-    }
-    // TODO: Implement API call to update password
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    toast.success("Contraseña actualizada")
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmNewPassword("")
   }
 
-  function handleLogout() {
-    clearAuthSession()
+  async function handleLogout() {
+    await logout()
     router.replace("/login")
   }
 
-  return (
-    <div className="p-5 lg:p-8">
-      {/* Profile Header */}
-      <section className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8 max-w-5xl">
-        <div className="relative">
-          <Image
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80"
-            alt={fullName || "Avatar"}
-            width={128}
-            height={128}
-            className="w-32 h-32 object-cover rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)]"
-          />
-          <button className="absolute bottom-0 right-0 bg-[var(--primary)] text-[var(--on-primary)] w-8 h-8 flex items-center justify-center rounded-full border-2 border-[var(--on-surface)] shadow-[2px_2px_0px_0px_var(--on-surface)] hover:bg-[var(--primary-container)] transition-colors">
-            <Icon name="edit" className="text-sm" />
-          </button>
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="fixo-loader"><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /></div>
+          <span className="text-label-md font-label uppercase text-[var(--on-surface-variant)] tracking-wider">
+            Cargando perfil...
+          </span>
         </div>
-        <div className="text-center md:text-left">
-          <h1 className="text-[40px] font-bold text-[var(--on-surface)] leading-[1.1] tracking-[-0.04em] mb-1">
-            {fullName || "Proveedor"}
-          </h1>
-          <div className="flex items-center justify-center md:justify-start gap-1 text-[var(--primary)] font-mono text-xs uppercase tracking-wider">
-            <Icon name="verified" fill className="text-base" />
-            Proveedor Verificado
-          </div>
-        </div>
-      </section>
+      </div>
+    )
+  }
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Personal Info Card */}
-        <section className="bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] p-6 rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm shadow-[4px_4px_0px_0px_var(--on-surface)]">
-          <h2 className="font-mono text-xs uppercase text-[var(--outline)] mb-4 tracking-wider">
+  return (
+    <div className="p-4 lg:p-8 max-w-5xl">
+      {/* Header */}
+      <header className="mb-8">
+        <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider mb-2">
+          Configuración
+        </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 bg-[var(--primary-container)] border-4 border-[var(--primary)] flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]">
+              <span className="text-4xl font-black font-headline text-[var(--primary)]">
+                {(fullName || "P").charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-3xl lg:text-4xl font-black font-headline text-[var(--primary)]">
+                {fullName || "Proveedor"}
+              </h1>
+              <div className="flex items-center gap-2 text-label-sm font-label uppercase tracking-wider text-green-700 mt-1">
+                <Icon name="verified" filled size={18} />
+                Proveedor Verificado
+              </div>
+            </div>
+          </div>
+          {providerSlug && (
+            <Link
+              href={`/providers/${providerSlug}`}
+              target="_blank"
+              className="self-start flex items-center gap-2 px-4 py-2 bg-[var(--surface)] border-2 border-[var(--primary)] text-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider hover:bg-[var(--primary-container)] transition-colors"
+            >
+              <Icon name="visibility" size={18} />
+              Ver perfil público
+            </Link>
+          )}
+        </div>
+      </header>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Personal Info */}
+        <section className="bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] p-5">
+          <h2 className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider mb-4 pb-3 border-b-2 border-[var(--primary)]/20">
             Información Personal
           </h2>
           <div className="space-y-4">
-            {/* Full Name */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Nombre Completo
               </label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] transition-colors"
+                className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] outline-none transition-all"
               />
             </div>
 
-            {/* Email */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1 flex justify-between items-center">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider flex items-center justify-between">
                 Correo Electrónico
-                <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1 border border-green-800">
-                  <Icon name="check_circle" className="text-xs" />
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 border border-green-600 text-green-800 text-[9px]">
+                  <Icon name="check_circle" size={12} />
                   Verificado
                 </span>
               </label>
@@ -283,43 +314,39 @@ export default function ProviderProfilePage() {
                 type="email"
                 value={email}
                 readOnly
-                className="w-full bg-[var(--surface-container)] border-0 border-b-2 border-[var(--on-surface)] px-0 py-2 text-base text-[var(--outline)] cursor-not-allowed"
+                className="w-full bg-[var(--surface-container)] border-2 border-[var(--primary)]/30 px-4 py-3 text-sm text-[var(--on-surface-variant)] cursor-not-allowed"
               />
             </div>
 
-            {/* Phone */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Teléfono
               </label>
               <input
                 type="tel"
+                inputMode="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+504 9999-9999"
-                className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors"
+                className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all"
               />
             </div>
 
-            {/* Location */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+                <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                   Departamento
                 </label>
                 <CustomSelect
                   value={departmentId}
-                  onChange={(value) => {
-                    setDepartmentId(value)
-                    setMunicipalityId("")
-                  }}
+                  onChange={(v) => { setDepartmentId(v); setMunicipalityId("") }}
                   options={departments}
                   placeholder="Seleccione..."
                   isLoading={loadingDepartments}
                 />
               </div>
               <div>
-                <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+                <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                   Municipio
                 </label>
                 <CustomSelect
@@ -335,15 +362,14 @@ export default function ProviderProfilePage() {
           </div>
         </section>
 
-        {/* Professional Info Card */}
-        <section className="bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] p-6 rounded-tr-2xl rounded-bl-2xl rounded-tl-sm rounded-br-sm shadow-[4px_4px_0px_0px_var(--on-surface)]">
-          <h2 className="font-mono text-xs uppercase text-[var(--outline)] mb-4 tracking-wider">
+        {/* Professional Info */}
+        <section className="bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] p-5">
+          <h2 className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider mb-4 pb-3 border-b-2 border-[var(--primary)]/20">
             Información Profesional
           </h2>
           <div className="space-y-4">
-            {/* Business Name */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Nombre del Negocio
               </label>
               <input
@@ -351,13 +377,12 @@ export default function ProviderProfilePage() {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 placeholder="Mi Negocio"
-                className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors"
+                className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all"
               />
             </div>
 
-            {/* Category */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Categoría Principal
               </label>
               <CustomSelect
@@ -369,40 +394,35 @@ export default function ProviderProfilePage() {
               />
             </div>
 
-            {/* Subcategories */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-2">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Subcategorías
               </label>
               <div className="flex flex-wrap gap-2">
                 {selectedSubcategoryIds.map((subId) => {
-                  const sub = availableSubcategories.find((s) => s.id === subId)
+                  const sub = findSubcategoryById(subId)
                   if (!sub) return null
                   return (
                     <span
                       key={subId}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--surface-container)] border-2 border-[var(--on-surface)] text-[var(--on-surface)] font-mono text-xs uppercase shadow-[2px_2px_0px_0px_var(--on-surface)] rounded-full"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--primary-container)] border-2 border-[var(--primary)] text-[var(--primary)] text-[10px] font-label font-bold uppercase"
                     >
                       {sub.name}
-                      <button
-                        type="button"
-                        onClick={() => removeSubcategory(subId)}
-                        className="hover:text-[var(--error)] transition-colors"
-                      >
-                        <Icon name="close" className="text-sm" />
+                      <button type="button" onClick={() => removeSubcategory(subId)} className="hover:text-[var(--error)]">
+                        <Icon name="close" size={14} />
                       </button>
                     </span>
                   )
                 })}
-                {selectedCategoryId && availableSubcategories.length > selectedSubcategoryIds.length && (
+                {selectedCategoryId && availableSubcategories.filter((sub) => !selectedSubcategoryIds.includes(sub.id)).length > 0 && (
                   <div className="relative group">
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-transparent border-2 border-dashed border-[var(--outline)] text-[var(--outline)] font-mono text-xs uppercase rounded-full hover:border-[var(--on-surface)] hover:text-[var(--on-surface)] transition-colors"
+                      className="inline-flex items-center gap-1 px-3 py-1 border-2 border-dashed border-[var(--primary)] text-[var(--primary)] text-[10px] font-label uppercase hover:bg-[var(--primary-container)] transition-all"
                     >
-                      <Icon name="add" className="text-sm" /> Añadir
+                      <Icon name="add" size={14} /> Añadir
                     </button>
-                    <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-lg shadow-[4px_4px_0px_0px_var(--on-surface)] z-10 min-w-[180px] max-h-48 overflow-y-auto">
+                    <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] z-10 min-w-[180px] max-h-48 overflow-y-auto">
                       {availableSubcategories
                         .filter((sub) => !selectedSubcategoryIds.includes(sub.id))
                         .map((sub) => (
@@ -419,14 +439,13 @@ export default function ProviderProfilePage() {
                   </div>
                 )}
                 {!selectedCategoryId && (
-                  <span className="text-sm text-[var(--outline)]">Selecciona una categoría primero</span>
+                  <span className="text-sm text-[var(--on-surface-variant)]">Selecciona una categoría primero</span>
                 )}
               </div>
             </div>
 
-            {/* Description */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Descripción
               </label>
               <textarea
@@ -434,22 +453,22 @@ export default function ProviderProfilePage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 placeholder="Describe tus servicios..."
-                className="w-full bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 p-3 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm resize-none"
+                className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all resize-none"
               />
             </div>
 
-            {/* Years of Experience */}
             <div>
-              <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+              <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                 Años de Experiencia
               </label>
               <input
                 type="number"
+                inputMode="numeric"
                 value={yearsExperience}
                 onChange={(e) => setYearsExperience(e.target.value)}
                 min="0"
                 placeholder="0"
-                className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors"
+                className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all"
               />
             </div>
           </div>
@@ -457,31 +476,28 @@ export default function ProviderProfilePage() {
       </div>
 
       {/* Security Section */}
-      <section className="bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] p-6 rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm shadow-[4px_4px_0px_0px_var(--on-surface)] mb-6">
+      <section className="bg-[var(--surface)] border-4 border-[var(--primary)] shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] p-5 mb-6">
         <button
           type="button"
           onClick={() => setSecurityExpanded(!securityExpanded)}
           className="w-full flex justify-between items-center"
         >
-          <h2 className="font-mono text-xs uppercase text-[var(--on-surface)] tracking-wider flex items-center gap-2">
-            <Icon name="lock" />
+          <h2 className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider flex items-center gap-2">
+            <Icon name="lock" size={18} />
             Seguridad
           </h2>
-          <Icon
-            name={securityExpanded ? "expand_less" : "expand_more"}
-            className="text-[var(--outline)]"
-          />
+          <Icon name={securityExpanded ? "expand_less" : "expand_more"} size={20} className="text-[var(--on-surface-variant)]" />
         </button>
 
         {securityExpanded && (
-          <div className="mt-4 pt-4 border-t-2 border-[var(--surface-container)] space-y-4">
-            <p className="text-sm text-[var(--outline)]">
+          <div className="mt-4 pt-4 border-t-2 border-[var(--primary)]/20 space-y-4">
+            <p className="text-sm text-[var(--on-surface-variant)]">
               Actualiza tu contraseña periódicamente para mantener tu cuenta segura.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+                <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                   Contraseña Actual
                 </label>
                 <input
@@ -489,13 +505,13 @@ export default function ProviderProfilePage() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors"
+                  className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all"
                 />
               </div>
               <div className="hidden md:block" />
 
               <div>
-                <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+                <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                   Nueva Contraseña
                 </label>
                 <input
@@ -503,17 +519,17 @@ export default function ProviderProfilePage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Mínimo 8 caracteres"
-                  className="w-full bg-transparent border-0 border-b-2 border-[var(--on-surface)] focus:border-[var(--primary)] focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors"
+                  className="w-full bg-[var(--surface)] border-2 border-[var(--primary)]/50 focus:border-[var(--primary)] focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all"
                 />
                 {newPassword && (
                   <>
-                    <div className="mt-2 flex gap-1 h-1 w-full">
-                      <div className={`h-full flex-1 rounded-full ${passwordStrength.level >= 1 ? "bg-[var(--error)]" : "bg-[var(--surface-container)]"}`} />
-                      <div className={`h-full flex-1 rounded-full ${passwordStrength.level >= 2 ? "bg-[var(--secondary)]" : "bg-[var(--surface-container)]"}`} />
-                      <div className={`h-full flex-1 rounded-full ${passwordStrength.level >= 3 ? "bg-[var(--primary)]" : "bg-[var(--surface-container)]"}`} />
-                      <div className={`h-full flex-1 rounded-full ${passwordStrength.level >= 4 ? "bg-green-500" : "bg-[var(--surface-container)]"}`} />
+                    <div className="mt-2 flex gap-1 h-1.5">
+                      <div className={`flex-1 ${passwordStrength.level >= 1 ? "bg-[var(--error)]" : "bg-[var(--surface-container)]"}`} />
+                      <div className={`flex-1 ${passwordStrength.level >= 2 ? "bg-[var(--primary)]" : "bg-[var(--surface-container)]"}`} />
+                      <div className={`flex-1 ${passwordStrength.level >= 3 ? "bg-[var(--primary)]" : "bg-[var(--surface-container)]"}`} />
+                      <div className={`flex-1 ${passwordStrength.level >= 4 ? "bg-green-500" : "bg-[var(--surface-container)]"}`} />
                     </div>
-                    <span className="font-mono text-[10px] text-[var(--outline)] mt-1 block">
+                    <span className="text-[10px] font-label text-[var(--on-surface-variant)] mt-1 block uppercase tracking-wider">
                       Fuerza: {passwordStrength.label}
                     </span>
                   </>
@@ -521,7 +537,7 @@ export default function ProviderProfilePage() {
               </div>
 
               <div>
-                <label className="block font-mono text-xs uppercase text-[var(--on-surface)] mb-1">
+                <label className="block text-[10px] font-label uppercase text-[var(--on-surface-variant)] mb-2 tracking-wider">
                   Confirmar Contraseña
                 </label>
                 <input
@@ -529,16 +545,14 @@ export default function ProviderProfilePage() {
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="••••••••"
-                  className={`w-full bg-transparent border-0 border-b-2 focus:ring-0 px-0 py-2 text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] transition-colors ${
+                  className={`w-full bg-[var(--surface)] border-2 focus:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] px-4 py-3 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] outline-none transition-all ${
                     confirmNewPassword && confirmNewPassword !== newPassword
                       ? "border-[var(--error)]"
-                      : "border-[var(--on-surface)] focus:border-[var(--primary)]"
+                      : "border-[var(--primary)]/50 focus:border-[var(--primary)]"
                   }`}
                 />
                 {confirmNewPassword && confirmNewPassword !== newPassword && (
-                  <span className="text-xs text-[var(--error)] mt-1 block">
-                    Las contraseñas no coinciden
-                  </span>
+                  <span className="text-xs text-[var(--error)] mt-1 block">Las contraseñas no coinciden</span>
                 )}
               </div>
             </div>
@@ -548,9 +562,9 @@ export default function ProviderProfilePage() {
                 type="button"
                 onClick={handleUpdatePassword}
                 disabled={!currentPassword || !newPassword || newPassword !== confirmNewPassword}
-                className="bg-[var(--on-surface)] text-[var(--surface)] px-6 py-2 font-mono text-xs uppercase border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--outline)] hover:bg-[var(--outline)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0px_0px_rgba(27,48,34,1)]"
               >
-                Actualizar Contraseña
+                <span className="!text-white">Actualizar Contraseña</span>
               </button>
             </div>
           </div>
@@ -558,10 +572,10 @@ export default function ProviderProfilePage() {
       </section>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row justify-end items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-end items-center gap-3 mb-8">
         <Link
           href="/provider"
-          className="w-full sm:w-auto px-6 py-3 bg-transparent text-[var(--on-surface)] font-mono text-xs uppercase border-2 border-[var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors text-center"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface)] text-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider hover:bg-[var(--primary-container)] transition-all"
         >
           Cancelar
         </Link>
@@ -569,37 +583,44 @@ export default function ProviderProfilePage() {
           type="button"
           onClick={handleSaveChanges}
           disabled={isSaving}
-          className="w-full sm:w-auto px-6 py-3 bg-[var(--primary)] text-[var(--on-primary)] font-mono text-xs uppercase border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)] hover:shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all disabled:opacity-50"
         >
           {isSaving ? (
             <>
-              <div className="w-4 h-4 border-2 border-[var(--on-primary)] border-t-transparent rounded-full animate-spin" />
-              Guardando...
+              <span className="w-4 h-4 border-2 border-white border-t-transparent animate-spin" />
+              <span className="!text-white">Guardando...</span>
             </>
           ) : (
-            "Guardar Cambios"
+            <>
+              <Icon name="save" size={18} className="!text-white" />
+              <span className="!text-white">Guardar Cambios</span>
+            </>
           )}
         </button>
       </div>
 
       {/* Danger Zone */}
-      <div className="border-t-2 border-[var(--surface-container)] pt-6 flex flex-col sm:flex-row justify-between lg:justify-end items-center gap-4">
-        {/* Logout button - only on mobile (desktop has it in sidebar) */}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="lg:hidden w-full sm:w-auto px-5 py-3 bg-[var(--surface-container)] text-[var(--on-surface)] font-mono text-xs uppercase tracking-wider border-2 border-[var(--on-surface)] rounded-tr-xl rounded-bl-xl rounded-tl-sm rounded-br-sm shadow-[3px_3px_0px_0px_var(--on-surface)] hover:shadow-[1px_1px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2"
-        >
-          <Icon name="power_settings_new" className="text-base" />
-          Cerrar Sesión
-        </button>
-        <button
-          type="button"
-          className="w-full sm:w-auto px-5 py-3 bg-[var(--error-container)] text-[var(--on-error-container)] font-mono text-xs uppercase tracking-wider border-2 border-[var(--error)] rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[3px_3px_0px_0px_var(--error)] hover:shadow-[1px_1px_0px_0px_var(--error)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2"
-        >
-          <Icon name="delete_forever" className="text-base" />
-          Eliminar Cuenta
-        </button>
+      <div className="border-t-2 border-[var(--primary)]/20 pt-6">
+        <p className="text-label-sm font-label uppercase text-[var(--error)] tracking-wider mb-4">
+          Zona de peligro
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="lg:hidden flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface)] text-[var(--error)] border-4 border-[var(--error)] text-label-sm font-label font-bold uppercase tracking-wider hover:bg-[var(--error-container)] transition-all"
+          >
+            <Icon name="logout" size={18} />
+            Cerrar Sesión
+          </button>
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-[var(--error)] text-white border-4 border-[var(--error)] text-label-sm font-label font-bold uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(211,52,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(211,52,0,1)] transition-all"
+          >
+            <Icon name="delete_forever" size={18} />
+            Eliminar Cuenta
+          </button>
+        </div>
       </div>
     </div>
   )

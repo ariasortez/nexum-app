@@ -2,238 +2,110 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
+import { useRequests } from "@/hooks/use-requests"
+import type { ServiceRequestSummary, RequestStatus } from "@/types/requests"
+import { URGENCY_DISPLAY, STATUS_DISPLAY } from "@/types/requests"
 
-// Material Symbol Icon component
-function Icon({ name, fill = false, className = "" }: { name: string; fill?: boolean; className?: string }) {
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
-      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
     >
       {name}
     </span>
   )
 }
 
-// Status types
-type RequestStatus = "pendiente" | "cotizando" | "en_progreso" | "completada" | "cancelada"
-
-// Mock request data
-interface Request {
-  id: string
-  title: string
-  category: string
-  categoryIcon: string
-  status: RequestStatus
-  date: string
-  address: string
-  urgency?: "urgente" | "esta_semana" | "este_mes" | "flexible"
-  quotesCount?: number
-  assignedProvider?: {
-    name: string
-    avatar: string
-    rating: number
-  }
-  rating?: number
-  completedDate?: string
-}
-
-const MOCK_REQUESTS: Request[] = [
-  {
-    id: "1",
-    title: "Reparación de fuga en baño principal",
-    category: "Plomería",
-    categoryIcon: "plumbing",
-    status: "pendiente",
-    date: "Hace 2 horas",
-    address: "Colonia Palmira, Tegucigalpa",
-    urgency: "urgente",
-  },
-  {
-    id: "2",
-    title: "Instalación de lámpara en sala",
-    category: "Electricidad",
-    categoryIcon: "electric_bolt",
-    status: "cotizando",
-    date: "Hace 1 día",
-    address: "Residencial Los Castaños",
-    urgency: "esta_semana",
-    quotesCount: 3,
-  },
-  {
-    id: "3",
-    title: "Reparación de puerta de madera",
-    category: "Carpintería",
-    categoryIcon: "carpenter",
-    status: "en_progreso",
-    date: "Hace 3 días",
-    address: "Colonia Kennedy",
-    assignedProvider: {
-      name: "Roberto Martínez",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80",
-      rating: 4.8,
-    },
-  },
-  {
-    id: "4",
-    title: "Limpieza profunda de apartamento",
-    category: "Limpieza",
-    categoryIcon: "cleaning_services",
-    status: "completada",
-    date: "Hace 1 semana",
-    address: "Torre Lara, Piso 12",
-    rating: 5,
-    completedDate: "15 Abr 2026",
-    assignedProvider: {
-      name: "María García",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80",
-      rating: 4.9,
-    },
-  },
-  {
-    id: "5",
-    title: "Pintura de habitación",
-    category: "Pintura",
-    categoryIcon: "format_paint",
-    status: "cancelada",
-    date: "Hace 2 semanas",
-    address: "Colonia Miraflores",
-  },
-  {
-    id: "6",
-    title: "Reparación de refrigerador",
-    category: "Electrodomésticos",
-    categoryIcon: "kitchen",
-    status: "cotizando",
-    date: "Hace 5 horas",
-    address: "Residencial Plaza",
-    urgency: "urgente",
-    quotesCount: 1,
-  },
-]
-
-// Filter tabs
 const FILTER_TABS = [
-  { id: "todas", label: "Todas", icon: "list" },
-  { id: "activas", label: "Activas", icon: "pending_actions" },
-  { id: "en_progreso", label: "En Progreso", icon: "engineering" },
-  { id: "completadas", label: "Completadas", icon: "task_alt" },
-  { id: "canceladas", label: "Canceladas", icon: "cancel" },
+  { id: "all", label: "Todas", icon: "list", status: undefined, count: 0 },
+  { id: "open", label: "Abiertas", icon: "hourglass_empty", status: "open" as RequestStatus },
+  { id: "in_progress", label: "En Progreso", icon: "construction", status: "in_progress" as RequestStatus },
+  { id: "completed", label: "Completadas", icon: "check_circle", status: "completed" as RequestStatus },
+  { id: "cancelled", label: "Canceladas", icon: "cancel", status: "cancelled" as RequestStatus },
 ]
 
-// Status configuration
-const STATUS_CONFIG: Record<RequestStatus, { label: string; bgColor: string; textColor: string; icon: string }> = {
-  pendiente: {
-    label: "Pendiente",
-    bgColor: "bg-[var(--secondary-container)]",
-    textColor: "text-[var(--on-secondary-container)]",
-    icon: "schedule",
-  },
-  cotizando: {
-    label: "Cotizando",
-    bgColor: "bg-[var(--tertiary-container)]",
-    textColor: "text-[var(--on-tertiary-container)]",
-    icon: "request_quote",
-  },
-  en_progreso: {
-    label: "En Progreso",
-    bgColor: "bg-[var(--primary-container)]",
-    textColor: "text-[var(--on-primary-container)]",
-    icon: "engineering",
-  },
-  completada: {
-    label: "Completada",
-    bgColor: "bg-green-100",
-    textColor: "text-green-800",
-    icon: "check_circle",
-  },
-  cancelada: {
-    label: "Cancelada",
-    bgColor: "bg-[var(--error-container)]",
-    textColor: "text-[var(--on-error-container)]",
-    icon: "cancel",
-  },
+const STATUS_STYLES: Record<RequestStatus, { bg: string; text: string; border: string; icon: string }> = {
+  open: { bg: "bg-[var(--primary-container)]", text: "text-[var(--primary)]", border: "border-[var(--primary)]", icon: "hourglass_empty" },
+  in_progress: { bg: "bg-[var(--secondary)]", text: "text-white", border: "border-[var(--primary)]", icon: "construction" },
+  completed: { bg: "bg-green-100", text: "text-green-800", border: "border-green-600", icon: "check_circle" },
+  cancelled: { bg: "bg-gray-100", text: "text-gray-600", border: "border-gray-400", icon: "cancel" },
+  expired: { bg: "bg-gray-100", text: "text-gray-500", border: "border-gray-300", icon: "schedule" },
 }
 
 export default function RequestsPage() {
-  const [activeFilter, setActiveFilter] = useState("todas")
+  const [activeFilter, setActiveFilter] = useState("all")
+  const selectedTab = FILTER_TABS.find((t) => t.id === activeFilter)
 
-  // Filter requests based on active filter
-  const filteredRequests = MOCK_REQUESTS.filter((request) => {
-    if (activeFilter === "todas") return true
-    if (activeFilter === "activas") return ["pendiente", "cotizando"].includes(request.status)
-    if (activeFilter === "en_progreso") return request.status === "en_progreso"
-    if (activeFilter === "completadas") return request.status === "completada"
-    if (activeFilter === "canceladas") return request.status === "cancelada"
-    return true
+  const { requests, isLoading, error } = useRequests({
+    status: selectedTab?.status,
+    limit: 50,
   })
 
   return (
-    <div className="p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full overflow-x-hidden px-4 py-4 pb-28 lg:p-8">
       {/* Header */}
-      <header className="flex items-start justify-between gap-3 mb-4 lg:mb-8">
-        <div>
-          <h1 className="text-2xl lg:text-[40px] font-bold text-[var(--on-surface)] leading-[1.1] tracking-[-0.04em]">
+      <header className="mb-6 flex items-start justify-between gap-4 lg:mb-8 lg:pr-16">
+        <div className="min-w-0">
+          <h1 className="text-3xl lg:text-4xl font-black text-[var(--primary)] font-headline leading-tight">
             Mis Solicitudes
           </h1>
-          <p className="font-mono text-[9px] lg:text-xs text-[var(--outline)] mt-1 uppercase tracking-wider">
-            {filteredRequests.length} solicitud{filteredRequests.length !== 1 ? "es" : ""}
+          <p className="text-label-sm font-label text-[var(--on-surface-variant)] mt-2 uppercase tracking-wider">
+            {requests.length} solicitud{requests.length !== 1 ? "es" : ""} encontrada{requests.length !== 1 ? "s" : ""}
           </p>
         </div>
-        {/* Desktop button */}
         <Link
           href="/client/requests/new"
-          className="hidden lg:inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary)] text-[var(--on-primary)] font-mono text-xs uppercase tracking-wider border-2 border-[var(--on-surface)] shadow-[4px_4px_0px_0px_var(--on-surface)] hover:shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+          className="hidden lg:inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--primary-container)] border-4 border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] transition-all"
         >
-          <Icon name="add" className="text-lg" />
-          Nueva Solicitud
+          <Icon name="add_circle" filled size={24} className="text-[var(--primary)]" />
+          <span className="text-label-md font-label text-[var(--primary)] uppercase font-bold">Nueva Solicitud</span>
         </Link>
       </header>
 
-      {/* Filter Tabs */}
-      <nav className="mb-4 lg:mb-6 overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 scrollbar-hide">
-        <div className="flex gap-1.5 lg:gap-2 w-max lg:w-auto">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-4 py-1.5 lg:py-2 font-mono text-[10px] lg:text-xs uppercase tracking-wider border-2 rounded-lg transition-all whitespace-nowrap ${
-                activeFilter === tab.id
-                  ? "bg-[var(--primary)] text-[var(--on-primary)] border-[var(--on-surface)] shadow-[1px_1px_0px_0px_var(--on-surface)] lg:shadow-[2px_2px_0px_0px_var(--on-surface)]"
-                  : "bg-transparent text-[var(--on-surface-variant)] border-[var(--outline-variant)]"
-              }`}
-            >
-              <Icon name={tab.icon} className="text-sm lg:text-base" />
-              {tab.label}
-            </button>
-          ))}
+      {/* Filter Tabs - Horizontal scroll container */}
+      <div className="mb-6 -mx-4 overflow-x-auto px-4 pb-3 lg:mx-0 lg:mb-8 lg:px-0">
+        <div className="flex min-w-max gap-2">
+          {FILTER_TABS.map((tab) => {
+            const isActive = activeFilter === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveFilter(tab.id)}
+                className={`shrink-0 flex items-center gap-1.5 border-2 px-3 py-2 transition-all lg:gap-2 lg:border-4 lg:px-4 lg:py-3 ${
+                  isActive
+                    ? "bg-[var(--primary)] border-[var(--primary)] shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] lg:shadow-[4px_4px_0px_0px_rgba(27,48,34,1)]"
+                    : "bg-[var(--surface)] border-[var(--primary)]/30 hover:border-[var(--primary)]"
+                }`}
+              >
+                <Icon
+                  name={tab.icon}
+                  filled={isActive}
+                  size={18}
+                  className={isActive ? "!text-white" : "text-[var(--primary)]"}
+                />
+                <span className={`text-[11px] lg:text-label-sm font-label uppercase font-bold ${isActive ? "!text-white" : "text-[var(--primary)]"}`}>
+                  {tab.label}
+                </span>
+              </button>
+            )
+          })}
         </div>
-      </nav>
+      </div>
 
-      {/* Requests Grid */}
-      {filteredRequests.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 lg:py-16 text-center px-4">
-          <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-[var(--surface-container)] flex items-center justify-center mb-4">
-            <Icon name="inbox" className="text-3xl lg:text-4xl text-[var(--outline)]" />
-          </div>
-          <h3 className="text-base lg:text-lg font-semibold text-[var(--on-surface)] mb-2">
-            No hay solicitudes
-          </h3>
-          <p className="text-xs lg:text-sm text-[var(--outline)] max-w-sm mb-6">
-            No tienes solicitudes en esta categoría. ¡Crea una nueva para comenzar!
-          </p>
-          <Link
-            href="/client/requests/new"
-            className="inline-flex items-center gap-2 px-5 lg:px-6 py-2.5 lg:py-3 bg-[var(--primary-container)] text-[var(--on-primary-container)] font-mono text-[10px] lg:text-xs uppercase tracking-wider border-2 border-[var(--on-surface)] shadow-[3px_3px_0px_0px_var(--on-surface)] lg:shadow-[4px_4px_0px_0px_var(--on-surface)] hover:shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-          >
-            <Icon name="add" className="text-base lg:text-lg" />
-            Nueva Solicitud
-          </Link>
-        </div>
+      {/* Content */}
+      {isLoading ? (
+        <LoadingState />
+      ) : error ? (
+        <ErrorState message={error} />
+      ) : requests.length === 0 ? (
+        <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 lg:gap-4">
-          {filteredRequests.map((request) => (
+        <div className="grid grid-cols-1 gap-5 pb-1 md:grid-cols-2 xl:grid-cols-3 lg:gap-6">
+          {requests.map((request) => (
             <RequestCard key={request.id} request={request} />
           ))}
         </div>
@@ -242,135 +114,149 @@ export default function RequestsPage() {
   )
 }
 
-// Request Card Component
-function RequestCard({ request }: { request: Request }) {
-  const statusConfig = STATUS_CONFIG[request.status]
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="fixo-loader mb-4"><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /></div>
+      <p className="text-body-md text-[var(--on-surface-variant)]">Cargando solicitudes...</p>
+    </div>
+  )
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="bg-[var(--error-container)] border-4 border-[var(--error)] p-8 neo-shadow-md">
+      <div className="flex items-start gap-4">
+        <Icon name="error" size={32} className="text-[var(--error)]" />
+        <div>
+          <h3 className="text-xl font-bold text-[var(--error)] font-headline mb-2">
+            Error al cargar
+          </h3>
+          <p className="text-body-md text-[var(--on-error-container)]">{message}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="bg-[var(--surface)] border-4 border-[var(--primary)] border-dashed p-12 flex flex-col items-center text-center">
+      <div className="w-20 h-20 bg-[var(--surface-container)] border-4 border-[var(--primary)]/30 flex items-center justify-center mb-6">
+        <Icon name="inbox" size={40} className="text-[var(--on-surface-variant)]" />
+      </div>
+      <h3 className="text-2xl font-bold text-[var(--primary)] font-headline mb-2">
+        No hay solicitudes
+      </h3>
+      <p className="text-body-md text-[var(--on-surface-variant)] max-w-md mb-8">
+        No tienes solicitudes en esta categoría. Crea tu primera solicitud y recibe cotizaciones de profesionales verificados.
+      </p>
+      <Link
+        href="/client/requests/new"
+        className="inline-flex items-center gap-3 px-8 py-4 bg-[var(--primary-container)] border-4 border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(27,48,34,1)] transition-all"
+      >
+        <Icon name="add_circle" filled size={24} className="text-[var(--primary)]" />
+        <span className="text-label-md font-label text-[var(--primary)] uppercase font-bold">Crear Solicitud</span>
+      </Link>
+    </div>
+  )
+}
+
+function RequestCard({ request }: { request: ServiceRequestSummary }) {
+  const statusStyle = STATUS_STYLES[request.status] || STATUS_STYLES.open
+  const isUrgent = request.urgency === "emergency"
+  const urgencyConfig = URGENCY_DISPLAY[request.urgency]
+  const responseCount = request.response_count ?? 0
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffHours < 1) return "Hace menos de 1h"
+    if (diffHours < 24) return `Hace ${diffHours}h`
+    if (diffDays < 7) return `Hace ${diffDays}d`
+    return date.toLocaleDateString("es-HN", { day: "numeric", month: "short" })
+  }
 
   return (
     <Link
       href={`/client/requests/${request.id}`}
-      className="block bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-xl lg:rounded-tl-2xl lg:rounded-br-2xl lg:rounded-tr-sm lg:rounded-bl-sm shadow-[2px_2px_0px_0px_var(--on-surface)] lg:shadow-[4px_4px_0px_0px_var(--on-surface)] transition-all group"
+      className="group block min-w-0 bg-[var(--surface)] border-2 border-[var(--primary)] shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(27,48,34,1)]"
     >
-      {/* Card Header */}
-      <div className="p-3 lg:p-4 border-b border-[var(--surface-container-high)]">
-        <div className="flex items-start justify-between gap-2 lg:gap-3 mb-2 lg:mb-3">
-          {/* Category Icon */}
-          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-[var(--primary-container)] flex items-center justify-center border border-[var(--primary)] shrink-0">
-            <Icon name={request.categoryIcon} className="text-[var(--on-primary-container)] text-lg lg:text-xl" />
-          </div>
-
+      {/* Header with status */}
+      <div className="p-3 border-b border-[var(--primary)]/20">
+        <div className="flex items-center justify-between gap-2 mb-2">
           {/* Status Badge */}
-          <div className="flex items-center gap-1 lg:gap-2 flex-wrap justify-end">
-            {request.urgency === "urgente" && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 lg:px-2 py-0.5 lg:py-1 bg-[var(--error-container)] text-[var(--on-error-container)] font-mono text-[10px] uppercase tracking-wider border border-[var(--error)] whitespace-nowrap">
-                <Icon name="bolt" className="text-xs" />
-                Urgente
-              </span>
-            )}
-            <span className={`inline-flex items-center gap-0.5 px-1.5 lg:px-2 py-0.5 lg:py-1 font-mono text-[10px] uppercase tracking-wider border border-current whitespace-nowrap ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-              <Icon name={statusConfig.icon} className="text-xs" />
-              {statusConfig.label}
+          <span className={`inline-flex items-center gap-1 px-2 py-1 ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border} text-[10px] lg:text-label-sm font-label uppercase font-bold`}>
+            <Icon name={statusStyle.icon} filled size={12} />
+            {STATUS_DISPLAY[request.status]?.label || request.status}
+          </span>
+
+          {/* Urgent Badge */}
+          {isUrgent && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error)] text-white border border-[var(--error)] text-[10px] font-label uppercase font-bold">
+              <Icon name="bolt" filled size={12} />
+              Urgente
             </span>
-          </div>
+          )}
         </div>
 
         {/* Title */}
-        <h3 className="text-sm lg:text-base font-semibold text-[var(--on-surface)] leading-tight mb-1 group-hover:text-[var(--primary)] transition-colors line-clamp-2">
+        <h3 className="text-base lg:text-lg font-bold text-[var(--primary)] font-headline leading-tight group-hover:text-[var(--secondary)] transition-colors line-clamp-2">
           {request.title}
         </h3>
 
         {/* Category */}
-        <span className="font-mono text-[10px] lg:text-xs text-[var(--outline)] uppercase tracking-wider">
-          {request.category}
-        </span>
+        <p className="text-[10px] lg:text-label-sm font-label text-[var(--on-surface-variant)] mt-1 uppercase">
+          {request.subcategory?.name ?? "Sin categoría"}
+        </p>
       </div>
 
-      {/* Card Body */}
-      <div className="p-3 lg:p-4 space-y-2 lg:space-y-3">
-        {/* Address */}
-        <div className="flex items-center gap-2 text-xs lg:text-sm text-[var(--on-surface-variant)]">
-          <Icon name="location_on" className="text-sm lg:text-base text-[var(--outline)] shrink-0" />
-          <span className="truncate">{request.address}</span>
-        </div>
+      {/* Details */}
+      <div className="p-3 space-y-1.5">
+        {/* Location */}
+        {request.municipality && (
+          <div className="flex items-center gap-2">
+            <Icon name="location_on" size={16} className="text-[var(--primary)] shrink-0" />
+            <span className="text-sm text-[var(--on-surface)] truncate">
+              {request.municipality.name}{request.department && `, ${request.department.name}`}
+            </span>
+          </div>
+        )}
 
         {/* Date */}
-        <div className="flex items-center gap-2 text-xs lg:text-sm text-[var(--on-surface-variant)]">
-          <Icon name="schedule" className="text-sm lg:text-base text-[var(--outline)] shrink-0" />
-          <span>{request.date}</span>
+        <div className="flex items-center gap-2">
+          <Icon name="schedule" size={16} className="text-[var(--primary)] shrink-0" />
+          <span className="text-sm text-[var(--on-surface)]">{formatDate(request.created_at)}</span>
         </div>
 
-        {/* Quotes Count (for cotizando status) */}
-        {request.status === "cotizando" && request.quotesCount !== undefined && (
-          <div className="flex items-center gap-2 text-xs lg:text-sm text-[var(--tertiary)]">
-            <Icon name="request_quote" className="text-sm lg:text-base shrink-0" />
-            <span className="font-medium">{request.quotesCount} cotización{request.quotesCount !== 1 ? "es" : ""}</span>
-          </div>
-        )}
-
-        {/* Assigned Provider (for en_progreso status) */}
-        {request.status === "en_progreso" && request.assignedProvider && (
-          <div className="flex items-center gap-2 lg:gap-3 pt-2 border-t border-[var(--surface-container-high)]">
-            <Image
-              src={request.assignedProvider.avatar}
-              alt={request.assignedProvider.name}
-              width={32}
-              height={32}
-              className="w-8 h-8 lg:w-9 lg:h-9 rounded-full object-cover border-2 border-[var(--on-surface)]"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs lg:text-sm font-medium text-[var(--on-surface)] truncate">
-                {request.assignedProvider.name}
-              </p>
-              <div className="flex items-center gap-1">
-                <Icon name="star" fill className="text-[10px] lg:text-xs text-amber-500" />
-                <span className="text-[10px] lg:text-xs text-[var(--outline)]">{request.assignedProvider.rating}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Completed Info (for completada status) */}
-        {request.status === "completada" && (
-          <div className="pt-2 border-t border-[var(--surface-container-high)]">
-            {request.assignedProvider && (
-              <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-3">
-                <Image
-                  src={request.assignedProvider.avatar}
-                  alt={request.assignedProvider.name}
-                  width={32}
-                  height={32}
-                  className="w-8 h-8 lg:w-9 lg:h-9 rounded-full object-cover border-2 border-[var(--on-surface)]"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs lg:text-sm font-medium text-[var(--on-surface)] truncate">
-                    {request.assignedProvider.name}
-                  </p>
-                  <p className="text-[10px] lg:text-xs text-[var(--outline)]">{request.completedDate}</p>
-                </div>
-              </div>
-            )}
-            {request.rating && (
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Icon
-                    key={star}
-                    name="star"
-                    fill={star <= request.rating!}
-                    className={`text-sm lg:text-base ${star <= request.rating! ? "text-amber-500" : "text-[var(--surface-container-high)]"}`}
-                  />
-                ))}
-              </div>
-            )}
+        {/* Urgency (if not emergency) - hide on mobile */}
+        {!isUrgent && (
+          <div className="hidden lg:flex items-center gap-2">
+            <Icon name={urgencyConfig.icon} size={16} className="text-[var(--primary)] shrink-0" />
+            <span className="text-sm text-[var(--on-surface)]">{urgencyConfig.label}</span>
           </div>
         )}
       </div>
 
-      {/* Card Footer - Action hint */}
-      <div className="px-3 lg:px-4 py-2 lg:py-3 border-t border-[var(--surface-container-high)] flex items-center justify-between">
-        <span className="font-mono text-[9px] lg:text-[10px] text-[var(--outline)] uppercase tracking-wider">
-          Ver detalles
-        </span>
-        <Icon name="arrow_forward" className="text-sm lg:text-base text-[var(--outline)] group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all" />
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-[var(--primary)]/20 flex items-center justify-between bg-[var(--surface-container)]">
+        {/* Response count */}
+        <div className="flex items-center gap-1 bg-[var(--primary-container)] px-2 py-1 border border-[var(--primary)]">
+          <Icon name="person" size={12} className="text-[var(--primary)]" />
+          <span className="text-[10px] font-label text-[var(--primary)] font-bold">
+            {responseCount}
+          </span>
+        </div>
+
+        {/* Arrow - always visible */}
+        <div className="flex items-center gap-1 text-[var(--primary)]">
+          <span className="text-[11px] font-label uppercase font-bold">Ver</span>
+          <Icon name="arrow_forward" size={14} />
+        </div>
       </div>
     </Link>
   )

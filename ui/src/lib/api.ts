@@ -108,12 +108,15 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     method,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
       ...headers,
     },
   }
 
   if (body) {
+    config.headers = {
+      ...config.headers,
+      "Content-Type": "application/json",
+    }
     config.body = JSON.stringify(body)
   }
 

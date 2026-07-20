@@ -147,3 +147,5 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
   { credits: 30, price: 780, pricePerCredit: 26, bonus: "-13%" },
   { credits: 60, price: 1440, pricePerCredit: 24, bonus: "-20%" },
 ]
+
+export * from './providers'

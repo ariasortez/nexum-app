@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
-export const urgencyLevelSchema = z.enum(['low', 'medium', 'high', 'urgent'])
+const urgencyValues = ['low', 'medium', 'high', 'emergency'] as const
+
+export const urgencyLevelSchema = z.preprocess((value) => {
+  if (value === 'urgent') {
+    return 'emergency'
+  }
+  return value
+}, z.enum(urgencyValues))
 
 export const requestStatusSchema = z.enum(['open', 'in_progress', 'completed', 'cancelled', 'expired'])
 
@@ -28,8 +35,6 @@ export const createServiceRequestSchema = z.object({
   title: z.string().min(5).max(100),
   description: z.string().min(20).max(2000),
   urgency: urgencyLevelSchema.default('medium'),
-  department_id: z.string().uuid(),
-  municipality_id: z.string().uuid(),
   address: z.string().max(255).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),

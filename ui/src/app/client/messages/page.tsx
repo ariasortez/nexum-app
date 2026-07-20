@@ -1,5 +1,5 @@
-import MessagesView from "@/components/messages/MessagesView"
+import MessagesRealtimeView from "@/components/messages/MessagesRealtimeView"
 
 export default function ClientMessagesPage() {
-  return <MessagesView />
+  return <MessagesRealtimeView />
 }

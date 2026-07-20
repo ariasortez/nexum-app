@@ -3,32 +3,33 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useCategories } from "@/hooks/use-categories"
 
-// Material Symbol Icon component
-function Icon({ name, fill = false, className = "" }: { name: string; fill?: boolean; className?: string }) {
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
-      style={fill ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
     >
       {name}
     </span>
   )
 }
 
-// Service categories
-const CATEGORIES = [
-  { id: "plomeria", name: "Plomería", icon: "plumbing", color: "primary", providers: 45 },
-  { id: "electricidad", name: "Electricidad", icon: "electric_bolt", color: "secondary", providers: 38 },
-  { id: "limpieza", name: "Limpieza", icon: "cleaning_services", color: "tertiary", providers: 62 },
-  { id: "carpinteria", name: "Carpintería", icon: "carpenter", color: "primary", providers: 24 },
-  { id: "pintura", name: "Pintura", icon: "format_paint", color: "secondary", providers: 31 },
-  { id: "electrodomesticos", name: "Electrodomésticos", icon: "kitchen", color: "tertiary", providers: 19 },
-  { id: "cerrajeria", name: "Cerrajería", icon: "lock", color: "primary", providers: 15 },
-  { id: "jardineria", name: "Jardinería", icon: "yard", color: "secondary", providers: 22 },
-]
+const CATEGORY_ICONS: Record<string, string> = {
+  "Hogar": "home",
+  "Construcción": "construction",
+  "Tecnología": "devices",
+  "Eventos": "celebration",
+  "Salud": "health_and_safety",
+  "Educación": "school",
+  "Transporte": "local_shipping",
+  "Belleza": "spa",
+}
 
-// Featured providers
 const FEATURED_PROVIDERS = [
   {
     id: "p1",
@@ -79,19 +80,20 @@ const FEATURED_PROVIDERS = [
 export default function ServicesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const { categories, isLoading: categoriesLoading, error: categoriesError } = useCategories()
 
-  const filteredCategories = CATEGORIES.filter((cat) =>
-    cat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
-    <div className="p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
+    <div className="p-4 pb-28 lg:p-8">
       {/* Header */}
-      <header className="mb-5 lg:mb-8">
-        <h1 className="text-2xl lg:text-[40px] font-bold text-[var(--on-surface)] leading-[1.1] tracking-[-0.04em]">
+      <header className="mb-6 lg:mb-8">
+        <h1 className="text-3xl lg:text-4xl font-black text-[var(--primary)] font-headline leading-tight">
           Servicios
         </h1>
-        <p className="text-xs lg:text-base text-[var(--on-surface-variant)] mt-1 lg:mt-2">
+        <p className="text-label-sm font-label text-[var(--on-surface-variant)] mt-2 uppercase tracking-wider">
           Encuentra el profesional perfecto
         </p>
       </header>
@@ -101,185 +103,192 @@ export default function ServicesPage() {
         <div className="relative">
           <Icon
             name="search"
-            className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-[var(--outline)] text-lg lg:text-xl"
+            size={20}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]"
           />
           <input
             type="text"
             placeholder="Buscar servicios..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-tl-xl rounded-br-xl lg:rounded-tl-2xl lg:rounded-br-2xl rounded-tr-sm rounded-bl-sm pl-10 lg:pl-12 pr-4 py-3 lg:py-4 text-sm lg:text-base text-[var(--on-surface)] placeholder:text-[var(--outline)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 shadow-[2px_2px_0px_0px_var(--surface-variant)] lg:shadow-[4px_4px_0px_0px_var(--surface-variant)]"
+            className="w-full bg-[var(--surface)] border-4 border-[var(--primary)] pl-12 pr-4 py-3 lg:py-4 text-body-md text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] focus:outline-none focus:bg-white neo-shadow-md"
           />
         </div>
       </div>
 
       {/* Categories */}
-      <section className="mb-6 lg:mb-12">
-        <div className="flex items-center justify-between mb-3 lg:mb-6">
-          <h2 className="text-base lg:text-2xl font-semibold text-[var(--on-surface)] flex items-center gap-1.5 lg:gap-3 tracking-[-0.02em]">
-            <Icon name="category" className="text-[var(--primary)] text-lg lg:text-2xl" />
+      <section className="mb-8 lg:mb-12">
+        <div className="flex items-center justify-between mb-4 lg:mb-6">
+          <h2 className="text-xl lg:text-2xl font-bold text-[var(--primary)] font-headline flex items-center gap-2">
+            <Icon name="category" filled size={24} className="text-[var(--secondary)]" />
             Categorías
           </h2>
           {selectedCategory && (
             <button
               onClick={() => setSelectedCategory(null)}
-              className="font-mono text-[10px] lg:text-xs text-[var(--primary)] hover:underline uppercase tracking-wider flex items-center gap-1"
+              className="flex items-center gap-1 px-3 py-1.5 text-label-sm font-label uppercase text-[var(--secondary)] border-2 border-[var(--secondary)] hover:bg-[var(--secondary)] hover:text-white transition-colors"
             >
-              <Icon name="close" className="text-sm" />
+              <Icon name="close" size={16} />
               Limpiar
             </button>
           )}
         </div>
 
-        {/* Mobile: Horizontal scroll */}
-        <div className="lg:hidden overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-          <div className="flex gap-3 w-max">
-            {filteredCategories.map((category) => {
-              const isSelected = selectedCategory === category.id
-              const colorClasses = {
-                primary: {
-                  bg: isSelected ? "bg-[var(--primary)]" : "bg-[var(--primary-container)]",
-                  text: isSelected ? "text-[var(--on-primary)]" : "text-[var(--on-primary-container)]",
-                  iconBg: isSelected ? "bg-[var(--on-primary)]/20" : "bg-[var(--primary)]/20",
-                },
-                secondary: {
-                  bg: isSelected ? "bg-[var(--secondary)]" : "bg-[var(--secondary-container)]",
-                  text: isSelected ? "text-[var(--on-secondary)]" : "text-[var(--on-secondary-container)]",
-                  iconBg: isSelected ? "bg-[var(--on-secondary)]/20" : "bg-[var(--secondary)]/20",
-                },
-                tertiary: {
-                  bg: isSelected ? "bg-[var(--tertiary)]" : "bg-[var(--tertiary-container)]",
-                  text: isSelected ? "text-[var(--on-tertiary)]" : "text-[var(--on-tertiary-container)]",
-                  iconBg: isSelected ? "bg-[var(--on-tertiary)]/20" : "bg-[var(--tertiary)]/20",
-                },
-              }
-              const colors = colorClasses[category.color as keyof typeof colorClasses]
-
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(isSelected ? null : category.id)}
-                  className={`flex flex-col items-center justify-center p-3 w-20 border-2 border-[var(--on-surface)] rounded-xl transition-all ${colors.bg} ${colors.text} ${
-                    isSelected
-                      ? "shadow-[1px_1px_0px_0px_var(--on-surface)]"
-                      : "shadow-[2px_2px_0px_0px_var(--on-surface)]"
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-1.5 ${colors.iconBg}`}>
-                    <Icon name={category.icon} className="text-lg" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-center leading-tight">
-                    {category.name}
-                  </span>
-                </button>
-              )
-            })}
+        {categoriesLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="fixo-loader"><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /></div>
           </div>
-        </div>
-
-        {/* Desktop: Grid */}
-        <div className="hidden lg:grid grid-cols-4 gap-4">
-          {filteredCategories.map((category) => {
-            const isSelected = selectedCategory === category.id
-            const colorClasses = {
-              primary: {
-                bg: isSelected ? "bg-[var(--primary)]" : "bg-[var(--primary-container)]",
-                text: isSelected ? "text-[var(--on-primary)]" : "text-[var(--on-primary-container)]",
-                iconBg: isSelected ? "bg-[var(--on-primary)]/20" : "bg-[var(--primary)]/20",
-                shadow: "shadow-[4px_4px_0px_0px_var(--primary)]",
-              },
-              secondary: {
-                bg: isSelected ? "bg-[var(--secondary)]" : "bg-[var(--secondary-container)]",
-                text: isSelected ? "text-[var(--on-secondary)]" : "text-[var(--on-secondary-container)]",
-                iconBg: isSelected ? "bg-[var(--on-secondary)]/20" : "bg-[var(--secondary)]/20",
-                shadow: "shadow-[4px_4px_0px_0px_var(--secondary)]",
-              },
-              tertiary: {
-                bg: isSelected ? "bg-[var(--tertiary)]" : "bg-[var(--tertiary-container)]",
-                text: isSelected ? "text-[var(--on-tertiary)]" : "text-[var(--on-tertiary-container)]",
-                iconBg: isSelected ? "bg-[var(--on-tertiary)]/20" : "bg-[var(--tertiary)]/20",
-                shadow: "shadow-[4px_4px_0px_0px_var(--tertiary)]",
-              },
-            }
-
-            const colors = colorClasses[category.color as keyof typeof colorClasses]
-
-            return (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(isSelected ? null : category.id)}
-                className={`group flex flex-col items-center justify-center p-5 border-2 border-[var(--on-surface)] rounded-tl-2xl rounded-br-2xl rounded-tr-sm rounded-bl-sm transition-all ${colors.bg} ${colors.text} ${
-                  isSelected
-                    ? colors.shadow
-                    : "shadow-[4px_4px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_var(--on-surface)]"
-                }`}
+        ) : categoriesError ? (
+          <div className="bg-[var(--error-container)] border-4 border-[var(--error)] p-6 neo-shadow-md">
+            <div className="flex items-center gap-3">
+              <Icon name="error" size={24} className="text-[var(--error)]" />
+              <p className="text-body-md text-[var(--error)]">{categoriesError}</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Mobile: Horizontal scroll */}
+            <div className="lg:hidden -ml-4 -mr-4">
+              <div
+                className="flex gap-3 px-4 pb-3 overflow-x-scroll scrollbar-none"
+                style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
               >
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 ${colors.iconBg}`}>
-                  <Icon name={category.icon} className="text-2xl" />
-                </div>
-                <span className="text-sm font-semibold text-center mb-1">
-                  {category.name}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-wider opacity-80">
-                  {category.providers} profesionales
-                </span>
-              </button>
-            )
-          })}
-        </div>
+                {filteredCategories.map((category) => {
+                  const isSelected = selectedCategory === category.id
+                  const iconName = CATEGORY_ICONS[category.name] || category.icon || "category"
+
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(isSelected ? null : category.id)}
+                      className={`flex-none flex flex-col items-center justify-center w-20 p-3 border-2 transition-all ${
+                        isSelected
+                          ? "bg-[var(--primary)] border-[var(--primary)] shadow-[2px_2px_0px_0px_rgba(27,48,34,1)]"
+                          : "bg-[var(--surface)] border-[var(--primary)]/40 hover:border-[var(--primary)]"
+                      }`}
+                    >
+                      <div className={`w-10 h-10 flex items-center justify-center mb-2 border-2 ${
+                        isSelected
+                          ? "bg-[var(--primary-container)] border-[var(--primary-container)]"
+                          : "bg-[var(--primary-container)]/50 border-[var(--primary)]/30"
+                      }`}>
+                        <Icon
+                          name={iconName}
+                          filled={isSelected}
+                          size={20}
+                          className={isSelected ? "text-[var(--primary)]" : "text-[var(--primary)]"}
+                        />
+                      </div>
+                      <span className={`text-[10px] font-label font-bold text-center leading-tight uppercase ${
+                        isSelected ? "!text-white" : "text-[var(--primary)]"
+                      }`}>
+                        {category.name}
+                      </span>
+                    </button>
+                  )
+                })}
+                <div className="flex-none w-2" aria-hidden="true" />
+              </div>
+            </div>
+
+            {/* Desktop: Grid */}
+            <div className="hidden lg:grid grid-cols-4 gap-4">
+              {filteredCategories.map((category) => {
+                const isSelected = selectedCategory === category.id
+                const iconName = CATEGORY_ICONS[category.name] || category.icon || "category"
+
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => setSelectedCategory(isSelected ? null : category.id)}
+                    className={`group flex flex-col items-center justify-center p-6 border-4 transition-all ${
+                      isSelected
+                        ? "bg-[var(--primary)] border-[var(--primary)] neo-shadow-md"
+                        : "bg-[var(--surface)] border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)]"
+                    }`}
+                  >
+                    <div className={`w-16 h-16 flex items-center justify-center mb-4 border-4 ${
+                      isSelected
+                        ? "bg-[var(--primary-container)] border-[var(--primary-container)]"
+                        : "bg-[var(--primary-container)] border-[var(--primary)]"
+                    }`}>
+                      <Icon
+                        name={iconName}
+                        filled={isSelected}
+                        size={32}
+                        className="text-[var(--primary)]"
+                      />
+                    </div>
+                    <span className={`text-label-md font-label font-bold text-center uppercase tracking-wide ${
+                      isSelected ? "!text-white" : "text-[var(--primary)]"
+                    }`}>
+                      {category.name}
+                    </span>
+                    <span className={`text-[10px] font-label mt-1 uppercase ${
+                      isSelected ? "text-white/80" : "text-[var(--on-surface-variant)]"
+                    }`}>
+                      {category.subcategories.length} servicio{category.subcategories.length !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Featured Providers */}
-      <section className="mb-6 lg:mb-12">
-        <div className="flex items-center justify-between mb-3 lg:mb-6">
-          <h2 className="text-base lg:text-2xl font-semibold text-[var(--on-surface)] flex items-center gap-1.5 lg:gap-3 tracking-[-0.02em]">
-            <Icon name="workspace_premium" fill className="text-amber-500 text-lg lg:text-2xl" />
+      <section className="mb-8 lg:mb-12">
+        <div className="flex items-center justify-between mb-4 lg:mb-6">
+          <h2 className="text-xl lg:text-2xl font-bold text-[var(--primary)] font-headline flex items-center gap-2">
+            <Icon name="workspace_premium" filled size={24} className="text-[var(--secondary)]" />
             Destacados
           </h2>
           <Link
             href="/client/services/providers"
-            className="font-mono text-[10px] lg:text-xs text-[var(--primary)] hover:underline uppercase tracking-wider"
+            className="flex items-center gap-1 text-label-sm font-label uppercase text-[var(--secondary)] hover:underline"
           >
             Ver todos
+            <Icon name="arrow_forward" size={16} />
           </Link>
         </div>
 
         {/* Mobile: Compact cards */}
-        <div className="lg:hidden space-y-2">
+        <div className="lg:hidden space-y-3">
           {FEATURED_PROVIDERS.slice(0, 3).map((provider) => (
             <Link
               key={provider.id}
               href={`/client/services/providers/${provider.id}`}
-              className="flex items-center gap-2.5 bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-xl shadow-[2px_2px_0px_0px_var(--on-surface)] p-2.5 group"
+              className="flex items-center gap-3 bg-[var(--surface)] border-2 border-[var(--primary)] shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] p-3 group active:shadow-[1px_1px_0px_0px_rgba(27,48,34,1)] active:translate-x-[2px] active:translate-y-[2px] transition-all"
             >
               {/* Avatar */}
               <div className="relative shrink-0">
                 <Image
                   src={provider.avatar}
                   alt={provider.name}
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-[var(--on-surface)]"
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 object-cover border-2 border-[var(--primary)]"
                 />
                 {provider.verified && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[var(--primary)] rounded-full flex items-center justify-center border border-[var(--surface-container-lowest)]">
-                    <Icon name="verified" className="text-[var(--on-primary)] text-[10px]" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[var(--primary)] flex items-center justify-center border border-[var(--surface)]">
+                    <Icon name="verified" filled size={12} className="text-white" />
                   </div>
                 )}
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-semibold text-[var(--on-surface)] truncate">
+                <h3 className="text-sm font-bold text-[var(--primary)] font-headline truncate">
                   {provider.name}
                 </h3>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-[9px] text-[var(--outline)] uppercase">
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] font-label text-[var(--on-surface-variant)] uppercase">
                     {provider.specialty}
                   </span>
-                  <div className="flex items-center gap-0.5">
-                    <Icon name="star" fill className="text-[10px] text-amber-500" />
-                    <span className="text-[10px] font-medium text-[var(--on-surface)]">
+                  <div className="flex items-center gap-0.5 bg-[var(--primary-container)] px-1.5 py-0.5 border border-[var(--primary)]">
+                    <Icon name="star" filled size={10} className="text-[var(--primary)]" />
+                    <span className="text-[10px] font-label font-bold text-[var(--primary)]">
                       {provider.rating}
                     </span>
                   </div>
@@ -288,19 +297,20 @@ export default function ServicesPage() {
 
               <Icon
                 name="chevron_right"
-                className="text-lg text-[var(--outline)] shrink-0"
+                size={20}
+                className="text-[var(--primary)] shrink-0"
               />
             </Link>
           ))}
         </div>
 
         {/* Desktop: Full cards */}
-        <div className="hidden lg:grid grid-cols-2 gap-4">
+        <div className="hidden lg:grid grid-cols-2 gap-5">
           {FEATURED_PROVIDERS.map((provider) => (
             <Link
               key={provider.id}
               href={`/client/services/providers/${provider.id}`}
-              className="bg-[var(--surface-container-lowest)] border-2 border-[var(--on-surface)] rounded-tr-2xl rounded-bl-2xl rounded-tl-sm rounded-br-sm shadow-[4px_4px_0px_0px_var(--on-surface)] hover:shadow-[2px_2px_0px_0px_var(--on-surface)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all p-5 group"
+              className="bg-[var(--surface)] border-4 border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all p-5 group"
             >
               <div className="flex gap-4">
                 {/* Avatar */}
@@ -308,13 +318,13 @@ export default function ServicesPage() {
                   <Image
                     src={provider.avatar}
                     alt={provider.name}
-                    width={72}
-                    height={72}
-                    className="w-[72px] h-[72px] rounded-full object-cover border-2 border-[var(--on-surface)]"
+                    width={80}
+                    height={80}
+                    className="w-20 h-20 object-cover border-4 border-[var(--primary)]"
                   />
                   {provider.verified && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[var(--primary)] rounded-full flex items-center justify-center border-2 border-[var(--surface-container-lowest)]">
-                      <Icon name="verified" className="text-[var(--on-primary)] text-sm" />
+                    <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-[var(--primary)] flex items-center justify-center border-2 border-[var(--surface)]">
+                      <Icon name="verified" filled size={16} className="text-white" />
                     </div>
                   )}
                 </div>
@@ -323,46 +333,47 @@ export default function ServicesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="text-lg font-semibold text-[var(--on-surface)] group-hover:text-[var(--primary)] transition-colors">
+                      <h3 className="text-lg font-bold text-[var(--primary)] font-headline group-hover:text-[var(--secondary)] transition-colors">
                         {provider.name}
                       </h3>
-                      <span className="font-mono text-xs text-[var(--outline)] uppercase tracking-wider">
+                      <span className="text-label-sm font-label text-[var(--on-surface-variant)] uppercase">
                         {provider.specialty}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 bg-[var(--surface-container)] px-2 py-1 rounded-full border border-[var(--outline-variant)]">
-                      <Icon name="star" fill className="text-sm text-amber-500" />
-                      <span className="font-mono text-xs font-medium text-[var(--on-surface)]">
+                    <div className="flex items-center gap-1 bg-[var(--primary-container)] px-2 py-1 border-2 border-[var(--primary)]">
+                      <Icon name="star" filled size={14} className="text-[var(--primary)]" />
+                      <span className="text-label-sm font-label font-bold text-[var(--primary)]">
                         {provider.rating}
                       </span>
                     </div>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-3">
-                    <div className="flex items-center gap-1 text-sm text-[var(--on-surface-variant)]">
-                      <Icon name="reviews" className="text-base text-[var(--outline)]" />
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+                      <Icon name="reviews" size={16} className="text-[var(--primary)]" />
                       <span>{provider.reviews} reseñas</span>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-[var(--on-surface-variant)]">
-                      <Icon name="timer" className="text-base text-[var(--outline)]" />
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+                      <Icon name="timer" size={16} className="text-[var(--primary)]" />
                       <span>{provider.responseTime}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-[var(--on-surface-variant)]">
-                      <Icon name="task_alt" className="text-base text-[var(--outline)]" />
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+                      <Icon name="task_alt" size={16} className="text-[var(--primary)]" />
                       <span>{provider.completedJobs} trabajos</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Action hint */}
-              <div className="mt-4 pt-4 border-t border-[var(--surface-container-high)] flex items-center justify-between">
-                <span className="font-mono text-[10px] text-[var(--outline)] uppercase tracking-wider">
-                  Ver perfil
+              {/* Footer */}
+              <div className="mt-4 pt-3 border-t-2 border-[var(--primary)]/20 flex items-center justify-between">
+                <span className="text-[11px] font-label text-[var(--on-surface-variant)] uppercase">
+                  Ver perfil completo
                 </span>
                 <Icon
                   name="arrow_forward"
-                  className="text-base text-[var(--outline)] group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all"
+                  size={18}
+                  className="text-[var(--primary)] group-hover:translate-x-1 transition-transform"
                 />
               </div>
             </Link>
@@ -371,41 +382,49 @@ export default function ServicesPage() {
       </section>
 
       {/* Quick Actions */}
-      <section className="pb-4">
-        <h2 className="text-base lg:text-2xl font-semibold text-[var(--on-surface)] mb-3 lg:mb-6 flex items-center gap-1.5 lg:gap-3 tracking-[-0.02em]">
-          <Icon name="bolt" className="text-[var(--secondary)] text-lg lg:text-2xl" />
+      <section>
+        <h2 className="text-xl lg:text-2xl font-bold text-[var(--primary)] font-headline mb-4 lg:mb-6 flex items-center gap-2">
+          <Icon name="bolt" filled size={24} className="text-[var(--secondary)]" />
           Acciones Rápidas
         </h2>
 
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-4">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-5">
           {/* Create Request */}
           <Link
             href="/client/requests/new"
-            className="bg-[var(--primary)] text-[var(--on-primary)] border-2 border-[var(--on-surface)] rounded-xl lg:rounded-tl-2xl lg:rounded-br-2xl lg:rounded-tr-sm lg:rounded-bl-sm shadow-[2px_2px_0px_0px_var(--on-surface)] lg:shadow-[4px_4px_0px_0px_var(--on-surface)] transition-all p-3 lg:p-6"
+            className="bg-[var(--primary)] border-4 border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all p-4 lg:p-6"
           >
-            <div className="flex items-center gap-2.5 lg:gap-4">
-              <div className="w-9 h-9 lg:w-12 lg:h-12 bg-[var(--on-primary)]/20 rounded-full flex items-center justify-center shrink-0">
-                <Icon name="add_circle" className="text-lg lg:text-2xl" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-[var(--primary-container)] border-2 border-[var(--primary-container)] flex items-center justify-center shrink-0">
+                <Icon name="add_circle" filled size={28} className="text-[var(--primary)]" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm lg:text-lg font-semibold">Nueva Solicitud</h3>
-                <p className="text-[10px] lg:text-sm opacity-80">Describe lo que necesitas</p>
+                <h3 className="text-base lg:text-lg font-bold text-white font-headline">
+                  Nueva Solicitud
+                </h3>
+                <p className="text-xs lg:text-sm text-white/80">
+                  Describe lo que necesitas
+                </p>
               </div>
             </div>
           </Link>
 
           {/* Emergency Service */}
           <Link
-            href="/client/requests/new?urgency=urgente"
-            className="bg-[var(--error-container)] text-[var(--on-error-container)] border-2 border-[var(--on-surface)] rounded-xl lg:rounded-tr-2xl lg:rounded-bl-2xl lg:rounded-tl-sm lg:rounded-br-sm shadow-[2px_2px_0px_0px_var(--error)] lg:shadow-[4px_4px_0px_0px_var(--error)] transition-all p-3 lg:p-6"
+            href="/client/requests/new?urgency=emergency"
+            className="bg-[var(--error-container)] border-4 border-[var(--error)] shadow-[4px_4px_0px_0px_var(--error)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_var(--error)] transition-all p-4 lg:p-6"
           >
-            <div className="flex items-center gap-2.5 lg:gap-4">
-              <div className="w-9 h-9 lg:w-12 lg:h-12 bg-[var(--error)]/20 rounded-full flex items-center justify-center shrink-0">
-                <Icon name="emergency" className="text-lg lg:text-2xl text-[var(--error)]" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-[var(--error)] border-2 border-[var(--error)] flex items-center justify-center shrink-0">
+                <Icon name="emergency" filled size={28} className="text-white" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm lg:text-lg font-semibold">Servicio Urgente</h3>
-                <p className="text-[10px] lg:text-sm opacity-80">Respuesta rápida</p>
+                <h3 className="text-base lg:text-lg font-bold text-[var(--error)] font-headline">
+                  Servicio Urgente
+                </h3>
+                <p className="text-xs lg:text-sm text-[var(--error)]/80">
+                  Respuesta prioritaria
+                </p>
               </div>
             </div>
           </Link>
@@ -413,15 +432,19 @@ export default function ServicesPage() {
           {/* View My Requests */}
           <Link
             href="/client/requests"
-            className="bg-[var(--surface-container-lowest)] text-[var(--on-surface)] border-2 border-[var(--on-surface)] rounded-xl lg:rounded-tl-2xl lg:rounded-br-2xl lg:rounded-tr-sm lg:rounded-bl-sm shadow-[2px_2px_0px_0px_var(--on-surface)] lg:shadow-[4px_4px_0px_0px_var(--on-surface)] transition-all p-3 lg:p-6"
+            className="bg-[var(--surface)] border-4 border-[var(--primary)] neo-shadow-md hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all p-4 lg:p-6"
           >
-            <div className="flex items-center gap-2.5 lg:gap-4">
-              <div className="w-9 h-9 lg:w-12 lg:h-12 bg-[var(--surface-container)] rounded-full flex items-center justify-center shrink-0">
-                <Icon name="receipt_long" className="text-lg lg:text-2xl text-[var(--primary)]" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-[var(--primary-container)] border-2 border-[var(--primary)] flex items-center justify-center shrink-0">
+                <Icon name="receipt_long" filled size={28} className="text-[var(--primary)]" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm lg:text-lg font-semibold">Mis Solicitudes</h3>
-                <p className="text-[10px] lg:text-sm text-[var(--outline)]">Ver tus pedidos</p>
+                <h3 className="text-base lg:text-lg font-bold text-[var(--primary)] font-headline">
+                  Mis Solicitudes
+                </h3>
+                <p className="text-xs lg:text-sm text-[var(--on-surface-variant)]">
+                  Ver tus pedidos activos
+                </p>
               </div>
             </div>
           </Link>

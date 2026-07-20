@@ -2,199 +2,252 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Button, Card, Badge, Input } from "@/components/ui"
-import { Search, Filter, MapPin, Clock, ChevronRight, Coin } from "@/components/icons"
-import { URGENCY_CONFIG, type UrgencyLevel } from "@/types"
+import { useProviderResponses } from "@/hooks/use-requests"
+import type { ProviderQuotationSummary, ResponseStatus } from "@/types/requests"
+import { RESPONSE_STATUS_DISPLAY } from "@/types/requests"
 
-const REQUESTS = [
-  {
-    id: "r1",
-    title: "Reparación de fuga en baño principal",
-    description: "Tengo una fuga debajo del lavamanos del baño principal. El agua gotea constantemente.",
-    category: "Plomería",
-    urgency: "urgente" as UrgencyLevel,
-    location: "Colonia Kennedy",
-    municipality: "Tegucigalpa",
-    postedAt: "Hace 15 min",
-    responses: 2,
-    maxResponses: 5,
-    creditCost: 1,
-  },
-  {
-    id: "r2",
-    title: "Instalación de calentador de agua",
-    description: "Necesito instalar un calentador de agua eléctrico en el baño. Ya tengo el equipo.",
-    category: "Plomería",
-    urgency: "esta_semana" as UrgencyLevel,
-    location: "Residencial Los Castaños",
-    municipality: "Comayagüela",
-    postedAt: "Hace 1 hora",
-    responses: 4,
-    maxResponses: 5,
-    creditCost: 1,
-  },
-  {
-    id: "r3",
-    title: "Destape de tubería de cocina",
-    description: "El fregadero de la cocina está tapado y el agua no drena. Necesito que lo destapen urgente.",
-    category: "Plomería",
-    urgency: "urgente" as UrgencyLevel,
-    location: "Barrio La Granja",
-    municipality: "Tegucigalpa",
-    postedAt: "Hace 2 horas",
-    responses: 1,
-    maxResponses: 5,
-    creditCost: 1,
-  },
-  {
-    id: "r4",
-    title: "Revisión de sistema de agua",
-    description: "Tengo baja presión de agua en toda la casa. Necesito que revisen el sistema completo.",
-    category: "Plomería",
-    urgency: "este_mes" as UrgencyLevel,
-    location: "Colonia Miraflores",
-    municipality: "Tegucigalpa",
-    postedAt: "Hace 3 horas",
-    responses: 0,
-    maxResponses: 5,
-    creditCost: 1,
-  },
+function Icon({ name, filled = false, className = "", size }: { name: string; filled?: boolean; className?: string; size?: number }) {
+  return (
+    <span
+      className={`material-symbols-outlined ${className}`}
+      style={{
+        ...(filled && { fontVariationSettings: "'FILL' 1" }),
+        ...(size && { fontSize: `${size}px` }),
+      }}
+    >
+      {name}
+    </span>
+  )
+}
+
+const RESPONSE_STATUS_STYLES: Record<ResponseStatus, { bg: string; border: string; text: string }> = {
+  pending: { bg: "bg-amber-100", border: "border-amber-600", text: "text-amber-800" },
+  accepted: { bg: "bg-green-100", border: "border-green-600", text: "text-green-800" },
+  rejected: { bg: "bg-[var(--error-container)]", border: "border-[var(--error)]", text: "text-[var(--error)]" },
+  completed: { bg: "bg-[var(--primary-container)]", border: "border-[var(--primary)]", text: "text-[var(--primary)]" },
+  cancelled: { bg: "bg-[var(--surface-container)]", border: "border-[var(--on-surface-variant)]", text: "text-[var(--on-surface-variant)]" },
+}
+
+const STATUS_TABS: { value: ResponseStatus | "all"; label: string }[] = [
+  { value: "all", label: "Todas" },
+  { value: "pending", label: "Pendientes" },
+  { value: "accepted", label: "Aceptadas" },
+  { value: "rejected", label: "Rechazadas" },
+  { value: "completed", label: "Completadas" },
+  { value: "cancelled", label: "Canceladas" },
 ]
 
-const FILTERS = [
-  { id: "all", label: "Todas" },
-  { id: "urgente", label: "Urgentes" },
-  { id: "nearby", label: "Cerca de mí" },
-  { id: "new", label: "Nuevas" },
-]
-
-export default function ProviderRequestsPage() {
-  const [activeFilter, setActiveFilter] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
+export default function ProviderQuotationsPage() {
+  const [activeStatus, setActiveStatus] = useState<ResponseStatus | "all">("all")
+  const statusParam = activeStatus === "all" ? undefined : activeStatus
+  const { responses, pagination, isLoading, error } = useProviderResponses({ limit: 50, status: statusParam })
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 bg-[var(--n-0)] border-b border-[var(--n-100)]">
-        <div className="px-5 py-4 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold text-[var(--n-900)] tracking-tight lg:text-2xl">
-                Solicitudes
-              </h1>
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-1.5 text-sm text-[var(--amber-600)] bg-[var(--amber-50)] px-3 py-1.5 rounded-full">
-                  <Coin size={14} />
-                  <span className="font-semibold">12 créditos</span>
-                </div>
-                <Button variant="ghost" size="sm" className="lg:hidden">
-                  <Filter size={18} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Input
-                  placeholder="Buscar solicitudes..."
-                  leading={<Search size={18} />}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button variant="secondary" className="hidden lg:flex" leading={<Filter size={16} />}>
-                Filtros
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-5 pb-3 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-5 px-5 lg:mx-0 lg:px-0">
-              {FILTERS.map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setActiveFilter(filter.id)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    activeFilter === filter.id
-                      ? "bg-[var(--n-900)] text-white"
-                      : "bg-[var(--n-100)] text-[var(--n-600)] hover:bg-[var(--n-150)]"
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+    <div className="p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
+      <header className="mb-6 lg:mb-8">
+        <p className="text-label-sm font-label uppercase text-[var(--on-surface-variant)] tracking-wider mb-2">
+          Cotizaciones
+        </p>
+        <h1 className="text-3xl lg:text-5xl font-black text-[var(--primary)] font-headline">
+          Mis Cotizaciones
+        </h1>
+        <p className="mt-2 text-body-md text-[var(--on-surface-variant)]">
+          <span className="font-bold text-[var(--primary)]">{pagination?.total ?? 0}</span> cotizaci{pagination?.total !== 1 ? "ones" : "ón"} enviada{pagination?.total !== 1 ? "s" : ""}
+        </p>
       </header>
 
-      <main className="px-5 py-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-sm text-[var(--n-500)] mb-4">
-            {REQUESTS.length} solicitudes disponibles
-          </div>
-
-          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-            {REQUESTS.map((request) => (
-              <RequestCard key={request.id} request={request} />
-            ))}
-          </div>
+      {/* Status Filter Tabs */}
+      <div className="mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 min-w-max">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveStatus(tab.value)}
+              className={`text-[10px] font-label font-bold uppercase tracking-wider py-2 px-3 border-4 transition-all ${
+                activeStatus === tab.value
+                  ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-[3px_3px_0px_0px_rgba(27,48,34,1)]"
+                  : "bg-[var(--surface)] border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary-container)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </main>
+      </div>
+
+      {isLoading ? (
+        <LoadingState />
+      ) : error ? (
+        <ErrorState message={error} />
+      ) : responses.length === 0 ? (
+        <EmptyState activeStatus={activeStatus} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {responses.map((response) => (
+            <QuotationCard key={response.id} quotation={response} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function RequestCard({ request }: { request: typeof REQUESTS[0] }) {
-  const urgency = URGENCY_CONFIG[request.urgency]
-  const spotsLeft = request.maxResponses - request.responses
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="fixo-loader"><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /><div className="fixo-loader-dot" /></div>
+      <p className="text-label-md font-label uppercase text-[var(--on-surface-variant)] mt-4 tracking-wider">
+        Cargando cotizaciones...
+      </p>
+    </div>
+  )
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+      <div className="w-20 h-20 bg-[var(--error-container)] border-4 border-[var(--error)] flex items-center justify-center mb-4">
+        <Icon name="error" filled size={40} className="text-[var(--error)]" />
+      </div>
+      <h3 className="text-xl font-bold font-headline text-[var(--error)] mb-2">
+        Error al cargar
+      </h3>
+      <p className="text-sm text-[var(--on-surface-variant)] max-w-sm">{message}</p>
+    </div>
+  )
+}
+
+function EmptyState({ activeStatus }: { activeStatus: ResponseStatus | "all" }) {
+  const message = activeStatus === "all"
+    ? "Aún no has enviado ninguna cotización. Explora las oportunidades disponibles para empezar."
+    : `No tienes cotizaciones con estado "${RESPONSE_STATUS_DISPLAY[activeStatus as ResponseStatus].label.toLowerCase()}".`
 
   return (
-    <Link href={`/provider/requests/${request.id}`} className="block">
-      <Card padding={16} interactive className="h-full">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <Badge
-              tone={request.urgency === "urgente" ? "red" : request.urgency === "esta_semana" ? "amber" : "neutral"}
-            >
-              {urgency.label}
-            </Badge>
-            <span className="text-xs text-[var(--n-400)]">{request.postedAt}</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-[var(--amber-600)] bg-[var(--amber-50)] px-2 py-0.5 rounded">
-            <Coin size={12} />
-            <span className="font-medium">{request.creditCost}</span>
-          </div>
+    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+      <div className="w-20 h-20 bg-[var(--primary-container)] border-4 border-[var(--primary)] flex items-center justify-center mb-4">
+        <Icon name="request_quote" size={40} className="text-[var(--primary)]" />
+      </div>
+      <h3 className="text-xl font-bold font-headline text-[var(--primary)] mb-2">
+        Sin cotizaciones
+      </h3>
+      <p className="text-sm text-[var(--on-surface-variant)] max-w-sm mb-4">
+        {message}
+      </p>
+      {activeStatus === "all" && (
+        <Link
+          href="/provider/opportunities"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--primary)] border-4 border-[var(--primary)] text-label-sm font-label font-bold uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(27,48,34,1)] transition-all"
+        >
+          <Icon name="search" size={18} className="!text-white" />
+          <span className="!text-white">Ver oportunidades</span>
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function QuotationCard({ quotation }: { quotation: ProviderQuotationSummary }) {
+  const request = quotation.request
+  if (!request) return null
+
+  const statusConfig = RESPONSE_STATUS_DISPLAY[quotation.status]
+  const statusStyle = RESPONSE_STATUS_STYLES[quotation.status]
+  const isUrgent = request.urgency === "emergency"
+
+  return (
+    <Link
+      href={`/provider/requests/${quotation.id}`}
+      className="group block min-w-0 bg-[var(--surface)] border-2 border-[var(--primary)] shadow-[3px_3px_0px_0px_rgba(27,48,34,1)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(27,48,34,1)]"
+    >
+      {/* Header with status */}
+      <div className="p-3 border-b border-[var(--primary)]/20">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          {/* Status Badge */}
+          <span className={`inline-flex items-center gap-1 px-2 py-1 ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border} text-[10px] lg:text-label-sm font-label uppercase font-bold`}>
+            <Icon name={statusConfig.icon} filled size={12} />
+            {statusConfig.label}
+          </span>
+
+          {/* Urgent Badge */}
+          {isUrgent && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error)] text-white border border-[var(--error)] text-[10px] font-label uppercase font-bold">
+              <Icon name="bolt" filled size={12} />
+              Urgente
+            </span>
+          )}
         </div>
 
-        <h3 className="text-[15px] font-semibold text-[var(--n-900)] mb-1.5 line-clamp-1">
+        {/* Title */}
+        <h3 className="text-base lg:text-lg font-bold text-[var(--primary)] font-headline leading-tight group-hover:text-[var(--secondary)] transition-colors line-clamp-2">
           {request.title}
         </h3>
 
-        <p className="text-sm text-[var(--n-500)] mb-3 line-clamp-2">
-          {request.description}
+        {/* Category */}
+        <p className="text-[10px] lg:text-label-sm font-label text-[var(--on-surface-variant)] mt-1 uppercase">
+          {request.subcategory?.name ?? "Sin categoría"}
         </p>
+      </div>
 
-        <div className="flex items-center gap-3 text-xs text-[var(--n-500)] mb-3">
-          <span className="flex items-center gap-1">
-            <MapPin size={12} />
-            {request.location}, {request.municipality}
+      {/* Details */}
+      <div className="p-3 space-y-1.5">
+        {/* Client */}
+        {request.client && (
+          <div className="flex items-center gap-2">
+            <Icon name="person" size={16} className="text-[var(--primary)] shrink-0" />
+            <span className="text-sm text-[var(--on-surface)] truncate">{request.client.full_name}</span>
+          </div>
+        )}
+
+        {/* Location */}
+        {request.municipality && (
+          <div className="flex items-center gap-2">
+            <Icon name="location_on" size={16} className="text-[var(--primary)] shrink-0" />
+            <span className="text-sm text-[var(--on-surface)] truncate">
+              {request.municipality.name}{request.department && `, ${request.department.name}`}
+            </span>
+          </div>
+        )}
+
+        {/* Date */}
+        <div className="flex items-center gap-2">
+          <Icon name="send" size={16} className="text-[var(--primary)] shrink-0" />
+          <span className="text-sm text-[var(--on-surface)]">{formatDate(quotation.created_at)}</span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-[var(--primary)]/20 flex items-center justify-between bg-[var(--surface-container)]">
+        {/* Price */}
+        <div className="flex items-center gap-1 bg-[var(--primary-container)] px-2 py-1 border border-[var(--primary)]">
+          <Icon name="payments" size={12} className="text-[var(--primary)]" />
+          <span className="text-[10px] font-label text-[var(--primary)] font-bold">
+            {formatPrice(quotation.estimated_price)}
           </span>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-[var(--n-100)]">
-          <div className="text-xs">
-            <span className={spotsLeft <= 2 ? "text-[var(--red-600)] font-medium" : "text-[var(--n-500)]"}>
-              {spotsLeft} {spotsLeft === 1 ? "lugar" : "lugares"} disponibles
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-sm font-medium text-[var(--brand-600)]">
-            Ver detalles
-            <ChevronRight size={14} />
-          </div>
+        {/* Arrow */}
+        <div className="flex items-center gap-1 text-[var(--primary)]">
+          <span className="text-[11px] font-label uppercase font-bold">Ver</span>
+          <Icon name="arrow_forward" size={14} />
         </div>
-      </Card>
+      </div>
     </Link>
   )
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const diffMs = Date.now() - date.getTime()
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffHours < 1) return "hace menos de 1 hora"
+  if (diffHours < 24) return `hace ${diffHours} hora${diffHours !== 1 ? "s" : ""}`
+  if (diffDays < 7) return `hace ${diffDays} día${diffDays !== 1 ? "s" : ""}`
+  return date.toLocaleDateString("es-HN", { day: "numeric", month: "short" })
+}
+
+function formatPrice(price: number | null): string {
+  if (price === null) return "Sin precio"
+  return `L. ${price.toLocaleString("es-HN")}`
 }

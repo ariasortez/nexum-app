@@ -111,3 +111,18 @@ export function clearAuthSession() {
   localStorage.removeItem("access_token")
   localStorage.removeItem("refresh_token")
 }
+
+export function updateStoredAuthUser(updater: (user: LoginResponse["user"]) => LoginResponse["user"]) {
+  const session = getAuthSession()
+  if (!session || typeof window === "undefined") {
+    return
+  }
+
+  const payload: StoredSession = {
+    ...session,
+    user: updater(session.user),
+    saved_at: new Date().toISOString(),
+  }
+
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(payload))
+}

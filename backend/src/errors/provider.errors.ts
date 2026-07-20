@@ -16,4 +16,11 @@ export const providerErrors = {
   updateWorkPostFailed: () => new AppError(500, 'Failed to update work post', 'PROVIDER_UPDATE_WORK_POST_FAILED'),
   deleteWorkPostFailed: () => new AppError(500, 'Failed to delete work post', 'PROVIDER_DELETE_WORK_POST_FAILED'),
   generateUploadUrlFailed: () => new AppError(500, 'Failed to generate upload URL', 'PROVIDER_GENERATE_UPLOAD_URL_FAILED'),
+  certificationNotFound: () => new AppError(404, 'Certification not found', 'PROVIDER_CERTIFICATION_NOT_FOUND'),
+  fetchCertificationsFailed: () => new AppError(500, 'Failed to fetch certifications', 'PROVIDER_FETCH_CERTIFICATIONS_FAILED'),
+  createCertificationFailed: () => new AppError(500, 'Failed to create certification', 'PROVIDER_CREATE_CERTIFICATION_FAILED'),
+  updateCertificationFailed: () => new AppError(500, 'Failed to update certification', 'PROVIDER_UPDATE_CERTIFICATION_FAILED'),
+  deleteCertificationFailed: () => new AppError(500, 'Failed to delete certification', 'PROVIDER_DELETE_CERTIFICATION_FAILED'),
+  fetchPublicProfileFailed: () => new AppError(500, 'Failed to fetch provider profile', 'PROVIDER_FETCH_PUBLIC_PROFILE_FAILED'),
+  fetchReviewsFailed: () => new AppError(500, 'Failed to fetch reviews', 'PROVIDER_FETCH_REVIEWS_FAILED'),
 }

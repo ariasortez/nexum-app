@@ -2,3 +2,7 @@ packages:
   - "backend"
   - "ui"
   - "packages/*"
+
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

@@ -101,6 +101,8 @@ export default function ClientRegistrationPage() {
                 name="phone"
                 label="Teléfono"
                 type="tel"
+                inputMode="tel"
+                pattern="[0-9+\-\s()]*"
                 placeholder="+504 9999-9999"
                 leading={<Phone size={18} />}
                 required

@@ -7,6 +7,8 @@ import locations from './locations.routes.js'
 import providers from './providers.routes.js'
 import requests from './requests.routes.js'
 import verification from './verification.routes.js'
+import notifications from './notifications.routes.js'
+import messages from './messages.routes.js'
 
 const api = new Hono<{ Variables: Variables }>()
 
@@ -17,5 +19,7 @@ api.route('/locations', locations)
 api.route('/providers', providers)
 api.route('/requests', requests)
 api.route('/verification', verification)
+api.route('/notifications', notifications)
+api.route('/messages', messages)
 
 export default api

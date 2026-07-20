@@ -1,0 +1,23 @@
+import { AppError } from '../lib/app-error.js'
+
+export const responseErrors = {
+  requestNotFound: () => new AppError(404, 'Request not found', 'RESPONSE_REQUEST_NOT_FOUND'),
+  requestNotOpen: () => new AppError(400, 'Can only respond to open requests', 'RESPONSE_REQUEST_NOT_OPEN'),
+  alreadyResponded: () => new AppError(409, 'You have already responded to this request', 'RESPONSE_ALREADY_SUBMITTED'),
+  maxResponsesReached: () => new AppError(400, 'This request has reached maximum responses', 'RESPONSE_MAX_REACHED'),
+  insufficientCredits: () => new AppError(402, 'Insufficient credits to respond', 'RESPONSE_INSUFFICIENT_CREDITS'),
+  providerNotFound: () => new AppError(404, 'Provider profile not found', 'RESPONSE_PROVIDER_NOT_FOUND'),
+  createResponseFailed: () => new AppError(500, 'Failed to create response', 'RESPONSE_CREATE_FAILED'),
+  fetchResponsesFailed: () => new AppError(500, 'Failed to fetch responses', 'RESPONSE_FETCH_FAILED'),
+  responseNotFound: () => new AppError(404, 'Response not found', 'RESPONSE_NOT_FOUND'),
+  notYourResponse: () => new AppError(403, 'Not authorized to access this response', 'RESPONSE_NOT_YOURS'),
+  responseNotPending: () => new AppError(400, 'Only pending responses can be accepted or rejected', 'RESPONSE_NOT_PENDING'),
+  categoryMismatch: () => new AppError(403, 'This request does not match your service categories', 'RESPONSE_CATEGORY_MISMATCH'),
+  departmentMismatch: () => new AppError(403, 'This request is not in your service area', 'RESPONSE_DEPARTMENT_MISMATCH'),
+  acceptResponseFailed: () => new AppError(500, 'Failed to accept response', 'RESPONSE_ACCEPT_FAILED'),
+  rejectResponseFailed: () => new AppError(500, 'Failed to reject response', 'RESPONSE_REJECT_FAILED'),
+  cannotCancelAccepted: () => new AppError(400, 'Cannot cancel an accepted response', 'RESPONSE_CANNOT_CANCEL_ACCEPTED'),
+  cannotCancelCompleted: () => new AppError(400, 'Cannot cancel a completed response', 'RESPONSE_CANNOT_CANCEL_COMPLETED'),
+  alreadyCancelled: () => new AppError(400, 'Response is already cancelled', 'RESPONSE_ALREADY_CANCELLED'),
+  cancelResponseFailed: () => new AppError(500, 'Failed to cancel response', 'RESPONSE_CANCEL_FAILED'),
+}
